@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор комбінацій</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0f16; --bg-2:#0e131c;
+  --surface:#131a25; --surface-2:#19212f; --surface-3:#212c3d;
+  --line:#242e3d; --line-2:#303c4e;
+  --text:#e9eef6; --text-2:#98a6b9; --text-3:#68758a;
+  --accent:#ffb020; --accent-2:#ffc24d; --accent-ink:#2a1c00;
+  --hard:#bd97ff; --hard-bg:rgba(150,110,255,.14);
+  --easy:#4fd6a8; --easy-bg:rgba(60,205,150,.12);
+  --danger:#ff6058; --danger-2:#e34a41; --danger-bg:rgba(255,96,88,.10);
+  --pos:#57cf94;
+  --radius:16px; --radius-sm:11px;
+  --shadow:0 24px 60px -24px rgba(0,0,0,.7);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --display:'Space Grotesk',var(--sans);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{ box-sizing:border-box; }
+html,body{ margin:0; }
+h1,h2,h3,p{ margin:0; }
+button{ font-family:inherit; color:inherit; }
+body{
+  font-family:var(--sans); background:var(--bg); color:var(--text);
+  min-height:100vh; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+body::before{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(1100px 480px at 12% -6%, rgba(255,176,32,.07), transparent 60%),
+    radial-gradient(820px 460px at 102% -2%, rgba(150,110,255,.05), transparent 55%);
+}
+:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+/* ---- numbers / mono readouts (font only; colour comes from dedicated classes) ---- */
+.mono{ font-family:var(--mono); font-variant-numeric:tabular-nums; font-feature-settings:'tnum' 1; letter-spacing:-.01em; }
+
+/* ---- page + masthead ---- */
+.page{ position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:44px 24px 84px; }
+.masthead{ margin-bottom:34px; }
+.brand{ display:flex; align-items:center; gap:16px; }
+.brand-mark{ position:relative; width:36px; height:36px; flex:none; }
+.brand-mark::before{ content:''; position:absolute; width:22px; height:22px; border-radius:7px; border:2px solid var(--accent); left:0; top:0; }
+.brand-mark::after{ content:''; position:absolute; width:22px; height:22px; border-radius:7px; background:var(--accent); right:0; bottom:0; box-shadow:0 0 0 3px var(--bg); }
+.brand-title{ font-family:var(--display); font-size:30px; font-weight:700; letter-spacing:-.5px; }
+.brand-sub{ color:var(--text-2); font-size:14px; margin-top:5px; }
+
+/* ---- layout ---- */
+.layout{ display:grid; grid-template-columns:322px 1fr; gap:24px; align-items:start; }
+.col-search{ position:sticky; top:24px; }
+
+/* ---- search panel ---- */
+.search-panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:18px; }
+.panel-head{ display:flex; align-items:center; gap:9px; margin-bottom:14px; }
+.panel-eyebrow{ font-family:var(--display); font-size:13px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; color:var(--text-2); }
+.search-wrap{ position:relative; }
+.field{
+  width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text);
+  border-radius:var(--radius-sm); padding:11px 13px; font-size:14px; font-family:var(--sans);
+  transition:border-color .15s, background .15s;
+}
+.field::placeholder{ color:var(--text-3); }
+.field:focus{ outline:none; border-color:var(--accent); background:var(--surface-3); }
+.dropdown{
+  position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:50;
+  background:var(--surface-2); border:1px solid var(--line-2); border-radius:var(--radius-sm);
+  max-height:344px; overflow-y:auto; box-shadow:var(--shadow); padding:4px;
+}
+.dropdown-item{
+  display:flex; width:100%; gap:10px; align-items:flex-start; justify-content:space-between;
+  text-align:left; background:transparent; border:none; border-radius:8px; padding:9px 10px;
+  cursor:pointer; transition:background .12s;
+}
+.dropdown-item:hover:not(:disabled){ background:var(--surface-3); }
+.dropdown-item:disabled{ cursor:not-allowed; opacity:.45; }
+.di-main{ min-width:0; }
+.di-name{ color:var(--text); font-size:13px; font-weight:500; line-height:1.3; }
+.di-meta{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; color:var(--text-3); font-size:11px; margin-top:4px; }
+.pts-chip{ flex:none; background:var(--accent); color:var(--accent-ink); font-weight:700; font-size:12px; padding:3px 8px; border-radius:6px; height:fit-content; }
+.hint{ display:flex; align-items:flex-start; gap:8px; font-size:12px; line-height:1.45; margin-top:12px; padding:10px 11px; border-radius:9px; }
+.hint .ico{ margin-top:1px; }
+.hint-warn{ background:rgba(255,176,32,.09); color:#e6b673; }
+.hint-ok{ background:var(--easy-bg); color:var(--easy); }
+
+/* ---- section heads ---- */
+.section-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.section-head-mt{ margin-top:30px; }
+.section-title{ font-family:var(--display); font-size:19px; font-weight:600; }
+
+/* ---- buttons ---- */
+.btn{
+  display:inline-flex; align-items:center; gap:8px; font-family:var(--sans); font-weight:600;
+  font-size:14px; line-height:1; padding:10px 16px; border-radius:var(--radius-sm);
+  border:1px solid transparent; cursor:pointer;
+  transition:background .15s, border-color .15s, color .15s, transform .05s;
+}
+.btn:active{ transform:translateY(1px); }
+.btn-primary{ background:var(--accent); color:var(--accent-ink); }
+.btn-primary:hover{ background:var(--accent-2); }
+.btn-danger{ background:var(--danger-2); color:#fff; padding:11px 13px; }
+.btn-danger:hover{ background:var(--danger); }
+.btn-outline{ background:transparent; border-color:var(--line-2); color:var(--text); }
+.btn-outline:hover{ border-color:var(--accent); color:var(--accent); }
+.btn-ghost-danger{ width:100%; justify-content:center; background:transparent; border:1px solid rgba(255,96,88,.28); color:#ff8880; padding:9px; font-size:13px; }
+.btn-ghost-danger:hover{ background:var(--danger-bg); border-color:rgba(255,96,88,.5); }
+
+/* ---- empty states ---- */
+.empty{ background:var(--surface); border:1px dashed var(--line-2); border-radius:var(--radius-sm); padding:38px 20px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:16px; }
+.muted{ color:var(--text-2); font-size:14px; }
+.small{ font-size:13px; }
+
+/* ---- combinations ---- */
+.stack{ display:flex; flex-direction:column; gap:8px; }
+.stack-lg{ display:flex; flex-direction:column; gap:14px; }
+.combo{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); overflow:hidden; transition:border-color .15s; }
+.combo-open{ border-color:var(--line-2); }
+.combo-head{ display:flex; width:100%; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; background:transparent; border:none; cursor:pointer; text-align:left; transition:background .12s; }
+.combo-head:hover{ background:var(--surface-2); }
+.combo-head-left{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; min-width:0; }
+.chevron{ width:8px; height:8px; border-right:2px solid var(--text-3); border-bottom:2px solid var(--text-3); transform:rotate(-45deg); transition:transform .2s ease, border-color .15s; flex:none; }
+.chevron-open{ transform:rotate(45deg); border-right-color:var(--accent); border-bottom-color:var(--accent); }
+.combo-name{ font-family:var(--display); font-weight:600; font-size:15px; }
+.combo-count{ font-size:12px; color:var(--text-3); }
+.combo-warn{ font-size:11px; color:var(--accent); background:rgba(255,176,32,.1); padding:2px 7px; border-radius:5px; }
+.combo-score{ flex:none; font-size:18px; font-weight:700; color:var(--accent); }
+.combo-body{ border-top:1px solid var(--line); padding:14px 16px; display:flex; flex-direction:column; gap:14px; }
+.el-line{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--surface-2); border-radius:8px; padding:8px 10px; }
+.el-line-left{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0; }
+.el-line-right{ display:flex; align-items:center; gap:8px; flex:none; }
+.grp-badge{ flex:none; font-size:11px; font-weight:600; color:var(--text-2); background:var(--surface-3); border-radius:5px; padding:2px 6px; }
+.el-name{ font-size:13px; color:var(--text); }
+.el-pts{ font-size:14px; font-weight:700; color:var(--accent); }
+.combo-breakdown{ background:var(--surface-2); border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:6px; }
+.cb-row{ display:flex; justify-content:space-between; font-size:13px; color:var(--text-2); }
+
+/* ---- icon buttons ---- */
+.icon-btn{ display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:8px; background:transparent; border:1px solid transparent; color:var(--text-3); cursor:pointer; transition:background .12s, color .12s; flex:none; }
+.icon-btn:hover{ color:var(--danger); background:var(--danger-bg); }
+.icon-btn-sm{ width:26px; height:26px; }
+
+/* ---- penalties ---- */
+.pen-panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:16px; display:flex; flex-direction:column; gap:14px; }
+.pen-presets{ display:flex; flex-wrap:wrap; gap:8px; }
+.chip-danger{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#ffb1ab; background:var(--danger-bg); border:1px solid rgba(255,96,88,.28); padding:7px 11px; border-radius:8px; cursor:pointer; transition:background .12s, border-color .12s; }
+.chip-danger:hover{ background:rgba(255,96,88,.18); border-color:rgba(255,96,88,.5); }
+.chip-danger .mono{ color:var(--danger); }
+.pen-custom{ display:flex; gap:8px; }
+.field-num{ width:98px; flex:none; }
+.line{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 12px; border-radius:8px; font-size:13px; color:var(--text); background:var(--surface-2); }
+.line-danger{ background:var(--danger-bg); border:1px solid rgba(255,96,88,.22); }
+.line-right{ display:flex; align-items:center; gap:8px; flex:none; }
+
+/* ---- total card ---- */
+.total-card{ margin-top:26px; position:relative; overflow:hidden; background:linear-gradient(180deg,var(--surface-2),var(--surface)); border:1px solid var(--line-2); border-radius:var(--radius); padding:22px; }
+.total-card::before{ content:''; position:absolute; right:-46px; top:-46px; width:190px; height:190px; background:radial-gradient(circle, rgba(255,176,32,.13), transparent 70%); pointer-events:none; }
+.total-top{ position:relative; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.eyebrow{ font-size:11px; letter-spacing:.15em; text-transform:uppercase; color:var(--text-3); font-weight:600; }
+.total-value{ font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:60px; font-weight:700; color:var(--accent); line-height:1; letter-spacing:-2px; margin-top:6px; }
+.total-breakdown{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:20px; padding-top:18px; border-top:1px solid var(--line); }
+.tb-item{ display:flex; flex-direction:column; gap:4px; }
+.tb-label{ font-size:11px; color:var(--text-3); text-transform:uppercase; letter-spacing:.05em; }
+.tb-num{ font-size:20px; font-weight:700; color:var(--text); }
+.total-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-top:16px; padding-top:14px; border-top:1px solid var(--line); }
+.mini-tag{ font-size:11px; color:var(--text-2); background:var(--surface-3); border:1px solid var(--line); padding:3px 8px; border-radius:5px; }
+
+/* ---- difficulty tags ---- */
+.tag{ font-size:11px; padding:2px 7px; border-radius:5px; font-weight:500; white-space:nowrap; }
+.tag-hard{ background:var(--hard-bg); color:var(--hard); }
+.tag-easy{ background:var(--easy-bg); color:var(--easy); }
+
+/* ---- modal (judge detail) ---- */
+.modal-overlay{ position:fixed; inset:0; z-index:100; display:flex; align-items:center; justify-content:center; padding:20px; background:rgba(5,8,13,.72); backdrop-filter:blur(4px); animation:overlayIn .15s ease; }
+.modal{ width:100%; max-width:640px; max-height:88vh; overflow-y:auto; background:var(--bg-2); border:1px solid var(--line-2); border-radius:var(--radius); box-shadow:var(--shadow); animation:modalIn .2s cubic-bezier(.2,.7,.3,1); }
+.modal-head{ position:sticky; top:0; z-index:2; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:20px 22px; background:var(--bg-2); border-bottom:1px solid var(--line); }
+.modal-title{ font-family:var(--display); font-size:20px; font-weight:700; margin-top:2px; }
+.modal-body{ padding:22px; display:flex; flex-direction:column; gap:18px; }
+.readout-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+.readout{ background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:14px; }
+.readout-danger{ background:var(--danger-bg); border-color:rgba(255,96,88,.25); }
+.readout-label{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-3); margin-bottom:8px; }
+.readout-value{ font-size:28px; font-weight:700; color:var(--text); }
+.readout-danger .readout-value{ color:var(--danger); }
+.panel{ background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:16px; }
+.panel-title{ font-family:var(--display); font-size:14px; font-weight:600; margin-bottom:10px; }
+.tag-row{ display:flex; flex-wrap:wrap; gap:8px; }
+.final-math{ display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; background:var(--surface-2); border:1px solid var(--line-2); border-radius:var(--radius-sm); padding:16px; }
+.final-math .mono{ font-size:22px; font-weight:700; color:var(--text); }
+.final-math .op{ color:var(--text-3); font-size:18px; font-weight:600; }
+.final-math .neg{ color:var(--danger); }
+.final-math .total-inline{ color:var(--accent); font-size:26px; }
+
+/* ---- error state ---- */
+.empty-file{ max-width:520px; margin:90px auto; text-align:center; padding:0 20px; }
+.empty-file h1{ font-family:var(--display); font-size:22px; margin-bottom:8px; }
+.empty-file p{ color:var(--text-2); }
+
+/* ---- CSS-drawn icons (no emoji) ---- */
+.ico{ display:inline-block; position:relative; vertical-align:-2px; flex:none; }
+.ico-search{ width:15px; height:15px; }
+.ico-search::before{ content:''; position:absolute; width:9px; height:9px; border:2px solid currentColor; border-radius:50%; top:1px; left:1px; }
+.ico-search::after{ content:''; position:absolute; width:6px; height:2px; background:currentColor; border-radius:2px; transform:rotate(45deg); right:-1px; bottom:0; }
+.ico-plus{ width:14px; height:14px; }
+.ico-plus::before{ content:''; position:absolute; width:14px; height:2px; background:currentColor; border-radius:2px; top:6px; left:0; }
+.ico-plus::after{ content:''; position:absolute; width:2px; height:14px; background:currentColor; border-radius:2px; left:6px; top:0; }
+.ico-close{ width:13px; height:13px; }
+.ico-close::before,.ico-close::after{ content:''; position:absolute; width:15px; height:2px; background:currentColor; border-radius:2px; top:5.5px; left:-1px; }
+.ico-close::before{ transform:rotate(45deg); }
+.ico-close::after{ transform:rotate(-45deg); }
+.ico-check{ width:14px; height:14px; }
+.ico-check::before{ content:''; position:absolute; box-sizing:border-box; width:5px; height:9px; border:solid currentColor; border-width:0 2px 2px 0; transform:rotate(43deg); left:4px; top:0; }
+.ico-warn{ width:16px; height:14px; }
+.ico-warn::before{ content:''; position:absolute; left:0; bottom:0; width:0; height:0; border-left:8px solid transparent; border-right:8px solid transparent; border-bottom:14px solid currentColor; }
+.ico-warn::after{ content:''; position:absolute; left:7px; bottom:2.5px; width:2px; height:6px; background:var(--bg); border-radius:1px; }
+.ico-list{ width:14px; height:12px; }
+.ico-list::before{ content:''; position:absolute; left:0; top:1px; width:14px; height:2px; background:currentColor; border-radius:2px; box-shadow:0 4px 0 currentColor,0 8px 0 currentColor; }
+.accent{ color:var(--accent); }
+
+/* ---- number colour helpers (placed last: win same-specificity ties) ---- */
+.num{ color:var(--text); font-weight:700; }
+.pos{ color:var(--pos); }
+.neg{ color:var(--danger); }
+
+/* ---- scrollbars ---- */
+.dropdown::-webkit-scrollbar,.modal::-webkit-scrollbar{ width:8px; }
+.dropdown::-webkit-scrollbar-thumb,.modal::-webkit-scrollbar-thumb{ background:var(--line-2); border-radius:8px; }
+.dropdown::-webkit-scrollbar-track,.modal::-webkit-scrollbar-track{ background:transparent; }
+
+@keyframes overlayIn{ from{ opacity:0 } to{ opacity:1 } }
+@keyframes modalIn{ from{ opacity:0; transform:translateY(8px) scale(.985) } to{ opacity:1; transform:none } }
+
+@media (max-width:900px){
+  .layout{ grid-template-columns:1fr; }
+  .col-search{ position:static; }
+  .readout-grid{ grid-template-columns:repeat(2,1fr); }
+  .total-breakdown{ grid-template-columns:repeat(2,1fr); }
+  .total-value{ font-size:52px; }
+  .brand-title{ font-size:24px; }
+  .page{ padding:30px 16px 66px; }
+}
+@media (max-width:520px){
+  .pen-custom{ flex-wrap:wrap; }
+  .field-num{ flex:1 1 auto; width:auto; }
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{ animation-duration:.001ms!important; transition-duration:.001ms!important; }
+}
+
+/* ═══════════════ ДОДАНІ СТИЛІ (бонуси, каталог, адмін) ═══════════════ */
+
+/* header стає рядком з кнопкою "Каталог" */
+.masthead{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.btn-catalog{ flex:none; }
+
+/* універсальна панель бонусів/штрафів */
+.io-panel{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:16px; display:flex; flex-direction:column; gap:14px; }
+.io-presets{ display:flex; flex-wrap:wrap; gap:8px; }
+.io-custom{ display:flex; gap:8px; }
+
+/* позитивні (додаткові бали) */
+.chip-pos{ display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#a7e8c8; background:rgba(87,207,148,.10); border:1px solid rgba(87,207,148,.28); padding:7px 11px; border-radius:8px; cursor:pointer; transition:background .12s, border-color .12s; }
+.chip-pos:hover{ background:rgba(87,207,148,.18); border-color:rgba(87,207,148,.5); }
+.chip-pos .mono{ color:var(--pos); }
+.btn-pos{ background:#2c9b63; color:#fff; padding:11px 13px; }
+.btn-pos:hover{ background:#33b473; }
+.line-pos{ background:rgba(87,207,148,.08); border:1px solid rgba(87,207,148,.20); }
+.readout-pos{ background:rgba(87,207,148,.09); border-color:rgba(87,207,148,.25); }
+.readout-pos .readout-value{ color:var(--pos); }
+.final-math .pos{ color:var(--pos); }
+
+/* total-breakdown тепер гнучкий (5 стовпців) */
+.total-breakdown{ grid-template-columns:repeat(auto-fit, minmax(90px, 1fr)); }
+
+/* секретна майже-прозора кнопка */
+.secret-btn{ position:fixed; right:16px; bottom:16px; z-index:40; width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,.035); border:1px solid rgba(255,255,255,.07); cursor:pointer; opacity:.28; transition:opacity .2s, background .2s; display:flex; align-items:center; justify-content:center; }
+.secret-btn:hover, .secret-btn:focus-visible{ opacity:.85; background:rgba(255,255,255,.08); }
+.secret-dots{ position:relative; width:4px; height:4px; border-radius:50%; background:var(--text-2); }
+.secret-dots::before, .secret-dots::after{ content:''; position:absolute; width:4px; height:4px; border-radius:50%; background:var(--text-2); left:0; }
+.secret-dots::before{ top:-7px; } .secret-dots::after{ top:7px; }
+
+/* широке модальне вікно */
+.modal-wide{ max-width:760px; }
+
+/* ── каталог ── */
+.cat-controls{ display:flex; flex-direction:column; gap:11px; position:sticky; top:0; z-index:2; background:var(--bg-2); padding-bottom:14px; margin-bottom:2px; }
+.cat-filter-row{ display:flex; flex-wrap:wrap; gap:8px; }
+.cat-filter-between{ align-items:center; justify-content:space-between; }
+.cat-count{ font-size:12px; color:var(--text-3); white-space:nowrap; }
+.cat-list{ display:flex; flex-direction:column; gap:10px; }
+.cat-card{ background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:14px; }
+.cat-card-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.cat-name{ font-size:15px; font-weight:600; color:var(--text); line-height:1.3; }
+.cat-badges{ display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; align-items:center; }
+.cat-badge{ font-size:11px; padding:2px 8px; border-radius:5px; background:var(--surface-3); color:var(--text-2); font-weight:600; }
+.cat-badge-cat{ background:rgba(255,176,32,.12); color:var(--accent); }
+.tut-link{ display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:var(--easy); text-decoration:none; background:var(--easy-bg); border:1px solid rgba(79,214,168,.28); padding:6px 11px; border-radius:7px; margin-top:11px; transition:background .12s; }
+.tut-link:hover{ background:rgba(79,214,168,.18); }
+.tut-none{ display:inline-block; font-size:11px; color:var(--text-3); margin-top:11px; }
+
+/* ── сегментований перемикач ── */
+.seg{ display:inline-flex; background:var(--surface-2); border:1px solid var(--line); border-radius:10px; padding:3px; gap:2px; flex-wrap:wrap; }
+.seg-full{ display:flex; }
+.seg-btn{ font-size:12px; font-weight:600; color:var(--text-2); background:transparent; border:none; padding:8px 13px; border-radius:7px; cursor:pointer; transition:background .12s, color .12s; flex:1; white-space:nowrap; }
+.seg-btn:hover{ color:var(--text); }
+.seg-btn.active{ background:var(--accent); color:var(--accent-ink); }
+.seg-btn.active-easy{ background:var(--easy); color:#08160f; }
+.seg-btn.active-hard{ background:var(--hard); color:#180a30; }
+
+/* ── select ── */
+.select{ width:100%; background:var(--surface-2); border:1px solid var(--line); color:var(--text); border-radius:var(--radius-sm); padding:11px 12px; font-size:14px; font-family:var(--sans); cursor:pointer; }
+.select:focus{ outline:none; border-color:var(--accent); }
+
+/* ── адмін ── */
+.admin-lock{ display:flex; flex-direction:column; gap:14px; align-items:center; text-align:center; padding:14px 0 8px; }
+.admin-lock .field{ max-width:280px; }
+.lock-badge{ width:54px; height:54px; border-radius:15px; background:var(--surface-2); border:1px solid var(--line-2); display:flex; align-items:center; justify-content:center; }
+.lock-badge .ico{ transform:scale(1.7); }
+.admin-err{ font-size:13px; color:var(--danger); font-weight:600; }
+.admin-pick{ display:flex; flex-direction:column; gap:14px; }
+.admin-pick-list{ display:flex; flex-direction:column; gap:4px; background:var(--surface-2); border:1px solid var(--line); border-radius:var(--radius-sm); padding:5px; max-height:320px; overflow-y:auto; }
+.admin-pick-item{ display:flex; width:100%; gap:10px; align-items:flex-start; justify-content:space-between; text-align:left; background:transparent; border:none; border-radius:8px; padding:9px 10px; cursor:pointer; transition:background .12s; }
+.admin-pick-item:hover{ background:var(--surface-3); }
+.admin-footer{ display:flex; flex-wrap:wrap; gap:10px; padding-top:6px; border-top:1px solid var(--line); }
+.admin-clear{ width:auto; flex:none; }
+.admin-form{ display:flex; flex-direction:column; gap:15px; }
+.field-row{ display:flex; flex-direction:column; gap:7px; }
+.field-label{ font-size:12px; font-weight:600; color:var(--text-2); text-transform:uppercase; letter-spacing:.04em; }
+.field-label .opt{ text-transform:none; letter-spacing:0; color:var(--text-3); font-weight:500; }
+.admin-actions{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.saved-flash{ font-size:13px; font-weight:600; color:var(--pos); display:inline-flex; align-items:center; gap:6px; }
+.admin-note{ font-size:12px; line-height:1.55; color:var(--text-2); background:var(--surface-2); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:8px; padding:12px 14px; }
+.export-area{ width:100%; min-height:150px; background:var(--bg); border:1px solid var(--line-2); border-radius:10px; color:var(--text-2); font-family:var(--mono); font-size:11px; line-height:1.45; padding:12px; resize:vertical; }
+.link-back{ display:inline-flex; align-items:center; gap:8px; align-self:flex-start; background:transparent; border:none; color:var(--text-2); font-size:13px; font-weight:600; cursor:pointer; padding:0; transition:color .12s; }
+.link-back:hover{ color:var(--accent); }
+.back-arrow{ width:8px; height:8px; border-left:2px solid currentColor; border-bottom:2px solid currentColor; transform:rotate(45deg); }
+
+/* ── додаткові CSS-іконки ── */
+.ico-grid{ width:14px; height:14px; }
+.ico-grid::before{ content:''; position:absolute; top:1px; left:1px; width:5px; height:5px; background:currentColor; border-radius:1px; box-shadow:7px 0 0 currentColor, 0 7px 0 currentColor, 7px 7px 0 currentColor; }
+.ico-play{ width:12px; height:12px; }
+.ico-play::before{ content:''; position:absolute; top:1px; left:2px; width:0; height:0; border-left:9px solid currentColor; border-top:5px solid transparent; border-bottom:5px solid transparent; }
+.ico-copy{ width:14px; height:14px; }
+.ico-copy::before{ content:''; position:absolute; width:8px; height:9px; border:2px solid currentColor; border-radius:2px; right:0; bottom:0; box-sizing:border-box; }
+.ico-copy::after{ content:''; position:absolute; width:8px; height:9px; border:2px solid currentColor; border-radius:2px; left:0; top:0; box-sizing:border-box; }
+.ico-lock{ width:14px; height:14px; }
+.ico-lock::before{ content:''; position:absolute; width:9px; height:7px; border:2px solid currentColor; border-bottom:none; border-radius:5px 5px 0 0; top:0; left:2.5px; box-sizing:border-box; }
+.ico-lock::after{ content:''; position:absolute; width:14px; height:8px; background:currentColor; border-radius:2px; bottom:0; left:0; }
+
+@media (max-width:520px){
+  .io-custom{ flex-wrap:wrap; }
+  .io-custom .field-num{ flex:1 1 auto; width:auto; }
+  .admin-footer{ flex-direction:column; }
+  .admin-footer .btn{ width:100%; justify-content:center; }
+}
+
+/* ── доповнення: нові елементи в адмінці ── */
+.cat-new-tag{ display:inline-block; margin-left:8px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--pos); background:rgba(87,207,148,.14); border:1px solid rgba(87,207,148,.3); padding:1px 6px; border-radius:5px; vertical-align:middle; }
+.field-two{ display:grid; grid-template-columns:112px 1fr; gap:12px; align-items:start; }
+.admin-hint{ font-size:12px; color:var(--text-3); margin-top:-6px; }
+.admin-divider{ display:flex; align-items:center; gap:12px; color:var(--text-3); font-size:12px; }
+.admin-divider::before, .admin-divider::after{ content:''; height:1px; background:var(--line); flex:1; }
+.btn-add-new{ width:100%; justify-content:center; }
+@media (max-width:520px){ .field-two{ grid-template-columns:1fr; } }
+
+</style>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b0f16">
+<meta name="description" content="Розраховуй бали за виступи в стрітвуркауті. Визначай комбінації, штрафи й результат в один момент.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Калькулятор комбінацій">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="shortcut icon" href="icon-192.png">
+</head>
+<body>
+<div id="root"></div>
+<script>
+window.GYMNASTICS_ELEMENTS = [
+  { name: "Жабка", points: 1, category: "СТАТИКА", group: "A", divGroup: "ГОРИЗОНТ", divType: "простий" },
+  { name: "Стійка на плечах на брусах", points: 1, category: "СТАТИКА", group: "A", divGroup: "СТІЙКИ", divType: "простий" },
+  { name: "Кут під перекладиною у висі на руках", points: 1, category: "СТАТИКА", group: "A", divGroup: "КУТИ", divType: "простий" },
+  { name: "Драгон флаг з опорою на руку", points: 1, category: "СТАТИКА", group: "A", divGroup: "ПРАПОРИ", divType: "простий" },
+  { name: "Крокодил на брусах на двох ліктях", points: 2, category: "СТАТИКА", group: "A", divGroup: "ГОРИЗОНТИ", divType: "простий" },
+  { name: "Кут на брусах", points: 2, category: "СТАТИКА", group: "A", divGroup: "КУТИ", divType: "простий" },
+  { name: "Кут ноги нарізно", points: 2, category: "СТАТИКА", group: "A", divGroup: "КУТИ", divType: "простий" },
+  { name: "Кут на перекладині в упорі на передпліччях", points: 2, category: "СТАТИКА", group: "A", divGroup: "КУТИ", divType: "простий" },
+  { name: "Прапор на передпліччі (халявний диван)", points: 2, category: "СТАТИКА", group: "A", divGroup: "ПРАПОРИ", divType: "простий" },
+  { name: "Кут високий на ліктях на брусах", points: 2, category: "СТАТИКА", group: "A", divGroup: "КУТИ", divType: "складний" },
+  { name: "Кут зверху на перекладині", points: 2, category: "СТАТИКА", group: "A", divGroup: "КУТИ", divType: "простий" },
+  { name: "Ластівка з 1 ногою", points: 2, category: "СТАТИКА", group: "A", divGroup: "ВИСИ", divType: "простий" },
+  { name: "Кут ноги нарізно на перекладині вузьким хватом", points: 2, category: "СТАТИКА", group: "A", divGroup: "КУТИ", divType: "складний" },
+  { name: "Крокодил на перекладині на двох ліктях", points: 3, category: "СТАТИКА", group: "A", divGroup: "ГОРИЗОНТ", divType: "простий" },
+  { name: "Стійка на ліктях (передпліччях)", points: 3, category: "СТАТИКА", group: "A", divGroup: "СТІЙКИ", divType: "простий" },
+  { name: "Передня закладка (ескуадра)", points: 3, category: "СТАТИКА", group: "A", divGroup: "ВИСИ", divType: "простий" },
+  { name: "Передній вис з підігнутою однією ногою", points: 3, category: "СТАТИКА", group: "A", divGroup: "ВИСИ", divType: "простий" },
+  { name: "Ластівка ноги нарізно", points: 3, category: "СТАТИКА", group: "A", divGroup: "ВИСИ", divType: "простий" },
+  { name: "Кут на брусах високий 45 градусів", points: 3, category: "СТАТИКА", group: "A", divGroup: "КУТИ", divType: "складний" },
+  { name: "Кут на кільцях", points: 3, category: "СТАТИКА", group: "A", divGroup: "КУТИ", divType: "простий" },
+  { name: "Прапорець халявний (ноги вгору)", points: 3, category: "СТАТИКА", group: "A", divGroup: "ПРАПОРИ", divType: "простий" },
+  { name: "Крокодил на одному лікті на вертикальній трубі", points: 3, category: "СТАТИКА", group: "A", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Кут ноги нарізно на 1 руці", points: 4, category: "СТАТИКА", group: "A", divGroup: "КУТИ", divType: "складний" },
+  { name: "Прапор ластівка", points: 4, category: "СТАТИКА", group: "A", divGroup: "ПРАПОРИ", divType: "простий" },
+  { name: "Драгонфлаг з однією ногою", points: 4, category: "СТАТИКА", group: "A", divGroup: "ПРАПОРИ", divType: "простий" },
+  { name: "Прапор з 1 ногою", points: 4, category: "СТАТИКА", group: "A", divGroup: "ПРАПОРИ", divType: "простий" },
+  { name: "Ластівка ноги разом", points: 5, category: "СТАТИКА", group: "A", divGroup: "ВИСИ", divType: "простий" },
+  { name: "Упор під перекладиною", points: 5, category: "СТАТИКА", group: "A", divGroup: "ГОРИЗОНТ", divType: "простий" },
+  { name: "Стійка на руках на підлозі / брусах", points: 5, category: "СТАТИКА", group: "A", divGroup: "СТІЙКИ", divType: "простий" },
+  { name: "Задня закладка (нівелада)", points: 5, category: "СТАТИКА", group: "A", divGroup: "ВИСИ", divType: "простий" },
+  { name: "Вис наварест", points: 5, category: "СТАТИКА", group: "A", divGroup: "ВИСИ", divType: "простий" },
+  { name: "Крокодил на одному лікті", points: 15, category: "СТАТИКА", group: "A", divGroup: "ГОРИЗОНТ", divType: "складний" },
+  { name: "Диван на брусах з однією підігнутою ногою", points: 5, category: "СТАТИКА", group: "A", divGroup: "ДИВАНИ", divType: "простий" },
+  { name: "Дед планш на передпліччях нарізно", points: 5, category: "СТАТИКА", group: "A", divGroup: "ГОРИЗОНТИ", divType: "простий" },
+  // [Група елементів B — Середній рівень]
+  { name: "Високий кут на брусах (вертикальний)", points: 6, category: "СТАТИКА", group: "B", divGroup: "КУТИ", divType: "складний" },
+  { name: "Силовий упор горизонтальний", points: 6, category: "СТАТИКА", group: "B", divGroup: "ГОРИЗОНТИ", divType: "простий" },
+  { name: "Мексика з 1 ногою", points: 6, category: "СТАТИКА", group: "B", divGroup: "СТІЙКИ", divType: "простий" },
+  { name: "Х прапор", points: 6, category: "СТАТИКА", group: "B", divGroup: "ПРАПОРИ", divType: "простий" },
+  { name: "Широка стійка", points: 6, category: "СТАТИКА", group: "B", divGroup: "СТІЙКИ", divType: "простий" },
+  { name: "Передній вис ноги нарізно", points: 6, category: "СТАТИКА", group: "B", divGroup: "ВИСИ", divType: "простий" },
+  { name: "Прапор ноги нарізно", points: 6, category: "СТАТИКА", group: "B", divGroup: "ПРАПОРИ", divType: "простий" },
+  { name: "Задній скайлайн", points: 6, category: "СТАТИКА", group: "B", divGroup: "ГОРИЗОНТИ", divType: "простий" },
+  { name: "Драгонфлаг ноги нарізно", points: 6, category: "СТАТИКА", group: "B", divGroup: "ПРАПОРИ", divType: "простий" },
+  { name: "Дед планш на передпліччях", points: 7, category: "СТАТИКА", group: "B", divGroup: "ГОРИЗОНТИ", divType: "простий" },
+  { name: "Кільце (доторкнутися голови ногами в стійці на руках)", points: 7, category: "СТАТИКА", group: "B", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Кут зверху на перекладині високий", points: 7, category: "СТАТИКА", group: "B", divGroup: "КУТИ", divType: "складний" },
+  { name: "Стійка прапор на брусах ноги нарізно", points: 7, category: "СТАТИКА", group: "B", divGroup: "СТІЙКИ", divType: "простий" },
+  { name: "Ластівка (широка постанова рук)", points: 7, category: "СТАТИКА", group: "B", divGroup: "ВИСИ", divType: "складний" },
+  { name: "Мексика ноги широко", points: 7, category: "СТАТИКА", group: "B", divGroup: "СТІЙКИ", divType: "простий" },
+  { name: "Стійка на перекладині", points: 7, category: "СТАТИКА", group: "B", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Кут вертикальний на кільцях", points: 8, category: "СТАТИКА", group: "B", divGroup: "КУТИ", divType: "складний" },
+  { name: "Ластівка на 1 (Задній вис на одній руці)", points: 8, category: "СТАТИКА", group: "B", divGroup: "ВИСИ", divType: "складний" },
+  { name: "L-стійка", points: 8, category: "СТАТИКА", group: "B", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Мексиканка ноги разом", points: 8, category: "СТАТИКА", group: "B", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Крісто", points: 8, category: "СТАТИКА", group: "B", divGroup: "?", divType: "складний" },
+  { name: "Анті крісто", points: 8, category: "СТАТИКА", group: "B", divGroup: "?", divType: "складний" },
+  { name: "Передній скайлайн", points: 8, category: "СТАТИКА", group: "B", divGroup: "ВИСИ", divType: "складний" },
+  { name: "Драгонфлаг ноги разом", points: 8, category: "СТАТИКА", group: "B", divGroup: "ПРАПОРИ", divType: "складний" },
+  { name: "Кільце в стійці на перекладині", points: 9, category: "СТАТИКА", group: "B", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Стійка ігуана", points: 9, category: "СТАТИКА", group: "B", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Стійка прапор на брусах ноги разом", points: 9, category: "СТАТИКА", group: "B", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Передній вис середня та вузька постановка рук", points: 9, category: "СТАТИКА", group: "B", divGroup: "ВИСИ", divType: "простий" },
+  { name: "Передній вис на передпліччях", points: 10, category: "СТАТИКА", group: "B", divGroup: "ВИСИ", divType: "складний" },
+  { name: "Прапор ноги разом", points: 10, category: "СТАТИКА", group: "B", divGroup: "ПРАПОРИ", divType: "складний" },
+  { name: "Простий хрест", points: 10, category: "СТАТИКА", group: "B", divGroup: "ХРЕСТИ", divType: "простий" },
+  { name: "Горизонт ноги нарізно", points: 10, category: "СТАТИКА", group: "B", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  // [Група елементів C — Високий рівень]
+  { name: "Стійка ігуана (ноги разом)", points: 11, category: "СТАТИКА", group: "C", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Стійка на кільцях ноги разом", points: 11, category: "СТАТИКА", group: "C", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Китайський прапор (прапор на передпліччі)", points: 11, category: "СТАТИКА", group: "C", divGroup: "ПРАПОРИ", divType: "складний" },
+  { name: "Стійка на 1 руці ноги нарізно", points: 6, category: "СТАТИКА", group: "C", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Горизонт ноги нарізно широка постановка рук", points: 12, category: "СТАТИКА", group: "C", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Дед планш", points: 12, category: "СТАТИКА", group: "C", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Ластівка притиснута", points: 12, category: "СТАТИКА", group: "C", divGroup: "ВИСИ", divType: "складний" },
+  { name: "Планш на ліктях (Біцепс)", points: 13, category: "СТАТИКА", group: "C", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Мексика в ігуані (ноги нарізно)", points: 13, category: "СТАТИКА", group: "C", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Притиснутий вис (Touch)", points: 13, category: "СТАТИКА", group: "C", divGroup: "ВИСИ", divType: "складний" },
+  { name: "Горизонт ноги нарізно вузьким хватом чи схресним", points: 13, category: "СТАТИКА", group: "C", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Планш на ліктях М", points: 13, category: "СТАТИКА", group: "C", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Літак ноги нарізно", points: 14, category: "СТАТИКА", group: "C", divGroup: "ЛІТАКИ", divType: "простий" },
+  { name: "Передній вис широка постановка рук", points: 14, category: "СТАТИКА", group: "C", divGroup: "ВИСИ", divType: "складний" },
+  { name: "Стійка на 1 руці ноги разом", points: 14, category: "СТАТИКА", group: "C", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Стійка прапор на 1 руці ноги нарізно", points: 14, category: "СТАТИКА", group: "C", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Хрест на кільцях", points: 14, category: "СТАТИКА", group: "C", divGroup: "ХРЕСТИ", divType: "складний" },
+  { name: "Схресна стійка", points: 14, category: "СТАТИКА", group: "C", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Горизонт ноги разом (Фул)", points: 14, category: "СТАТИКА", group: "C", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Горизонт на кільцях ноги нарізно", points: 14, category: "СТАТИКА", group: "C", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Драгонфлаг на одній руці", points: 14, category: "СТАТИКА", group: "C", divGroup: "ПРАПОРИ", divType: "складний" },
+  { name: "Стійка на 1 руці на перекладині", points: 15, category: "СТАТИКА", group: "C", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Планш на ліктях (Біцепс) фулл", points: 15, category: "СТАТИКА", group: "C", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Горизонт ноги нарізно з упором однієї руки на кістку іншої", points: 15, category: "СТАТИКА", group: "C", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  // [Група елементів D — Надвисокий рівень]
+  { name: "Диван на брусах", points: 16, category: "СТАТИКА", group: "D", divGroup: "ДИВАНИ", divType: "складний" },
+  { name: "Горизонт ноги разом (Фул) широка постановка рук", points: 16, category: "СТАТИКА", group: "D", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Стійка свічка", points: 16, category: "СТАТИКА", group: "D", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Стійка прапор на 1 руці ноги разом", points: 17, category: "СТАТИКА", group: "D", divGroup: "СТІЙКИ", divType: "складний" },
+  { name: "Широкий притиснутий передній вис (Touch)", points: 17, category: "СТАТИКА", group: "D", divGroup: "ВИСИ", divType: "складний" },
+  { name: "Горизонт на кільцях ноги разом (Фул на кільцях)", points: 17, category: "СТАТИКА", group: "D", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Кут на брусах високий горизонтальний", points: 17, category: "СТАТИКА", group: "D", divGroup: "КУТИ", divType: "складний" },
+  { name: "Горизонт ноги нарізно на пальцях", points: 17, category: "СТАТИКА", group: "D", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Зворотний хрест", points: 18, category: "СТАТИКА", group: "D", divGroup: "ХРЕСТИ", divType: "складний" },
+  { name: "SAT задній", points: 18, category: "СТАТИКА", group: "D", divGroup: "ВИСИ", divType: "складний" },
+  { name: "Літак ноги разом (Фул літак) перекладина / бруси (ВЕРХНІЙ ХВАТ)", points: 18, category: "СТАТИКА", group: "D", divGroup: "ЛІТАКИ", divType: "складний" },
+  { name: "Диван на підлозі", points: 19, category: "СТАТИКА", group: "D", divGroup: "ДИВАНИ", divType: "складний" },
+  { name: "Горизонт ноги разом вузьким хватом / ігуана фулл", points: 19, category: "СТАТИКА", group: "D", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Передній вис на одній руці (без закладки на брусах)", points: 19, category: "СТАТИКА", group: "D", divGroup: "ВИСИ", divType: "складний" },
+  { name: "Горизонт ноги разом схресним", points: 20, category: "СТАТИКА", group: "D", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Літак ноги разом на підлозі, брусах, перекладині (НИЖНІЙ ХВАТ)", points: 20, category: "СТАТИКА", group: "D", divGroup: "ЛІТАКИ", divType: "складний" },
+  { name: "Фул з упором однієї руки за передпліччя іншої", points: 20, category: "СТАТИКА", group: "D", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Горизонт ноги разом на пальцях", points: 20, category: "СТАТИКА", group: "D", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  // [Елементи надвисокої складності — Максимальний рівень]
+  { name: "Літак ноги разом на кільцях", points: 22, category: "СТАТИКА", group: "E", divGroup: "ЛІТАКИ", divType: "складний" },
+  { name: "Варіації літак ноги разом (Фул пак) (ускладнення)", points: 22, category: "СТАТИКА", group: "E", divGroup: "ЛІТАКИ", divType: "складний" },
+  { name: "Імпосібл hold", points: 23, category: "СТАТИКА", group: "E", divGroup: "?", divType: "складний" },
+  { name: "SAT Передній", points: 27, category: "СТАТИКА", group: "E", divGroup: "ВИСИ", divType: "складний" },
+  { name: "Горизонт на одній руці", points: 28, category: "СТАТИКА", group: "E", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  { name: "Вузький SAT", points: 29, category: "СТАТИКА", group: "E", divGroup: "ХРЕСТИ", divType: "складний" },
+  { name: "Зворотний літак на кільцях (Victorian cross)", points: 30, category: "СТАТИКА", group: "E", divGroup: "ЛІТАКИ", divType: "складний" },
+  { name: "Cyпі SAT", points: 32, category: "СТАТИКА", group: "E", divGroup: "ВИСИ", divType: "складний" },
+  { name: "Зворотний горизонт", points: 35, category: "СТАТИКА", group: "E", divGroup: "ГОРИЗОНТИ", divType: "складний" },
+  // ═══════════════ ДИНАМІКА ═══════════════
+  // [Група елементів А — Базовий рівень]
+  { name: "Сокирка вперед", points: 1, category: "ДИНАМІКА", group: "A", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Санжировка", points: 1, category: "ДИНАМІКА", group: "A", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Вихід на три", points: 1, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Сокирка без маху", points: 1, category: "ДИНАМІКА", group: "A", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Сокирка на 180", points: 1, category: "ДИНАМІКА", group: "A", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Трунка назад / трунка на 180", points: 1, category: "ДИНАМІКА", group: "A", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Бочка вперед на перекладині", points: 1, category: "ДИНАМІКА", group: "A", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Бочка назад на перекладині", points: 1, category: "ДИНАМІКА", group: "A", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Стільчик", points: 1, category: "ДИНАМІКА", group: "A", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Вихід на чотири", points: 1, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Сокира назад в зачіп", points: 2, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Чеський на 180", points: 2, category: "ДИНАМІКА", group: "A", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Підйом розгином назад", points: 2, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Замок (підйом махом назад)", points: 2, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Імпульсо у вис", points: 2, category: "ДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Голочка (підйом двома)", points: 2, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Відмах з упора на місяць", points: 2, category: "ДИНАМІКА", group: "A", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Супер санжировка", points: 2, category: "ДИНАМІКА", group: "A", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Манкі / анті манкі", points: 2, category: "ДИНАМІКА", group: "A", divGroup: "ПЕРЕЛЬОТИ", divType: "простий" },
+  { name: "Скльопка нижнім хватом", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Скльопка (підйом розгином вперед)", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "180 на брусах", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Скльопка на брусах", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Передній зіскок", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Задній зіскок", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Відмах на чеський", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Оберти в задньому упорі", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Сокирка назад", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Лач Гейнер", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Олі / анті олі", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ПЕРЕЛЬОТИ", divType: "простий" },
+  { name: "Оберти на ліктях", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Переднє 360 в зворотній", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Переліт на 180 з упору", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ПЕРЕЛЬОТИ", divType: "простий" },
+  { name: "Передній 360", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Вихід на три на 180", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ПЕРЕЛЬОТИ", divType: "простий" },
+  { name: "Х виліт на 180", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Х виліт ноги нарізно", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Пів місяць", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Халявний 360", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Заліт на 180 в упор ззаду на маху назад", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Іголочка на 180 (халявна / не амплітудна)", points: 3, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Гінгер з п'ятки", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Вихід з під перекладини (технічний)", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Калібрі (лачгейнер з халявного 360)", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Гробік на 180 в упор", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Халявна 540 на маху назад", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Халявна 540 на маху вперед", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Чеський в зацеп за головою", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Передній зіскок на 180", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Гейнер в зацеп", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "САЛЬТО", divType: "простий" },
+  { name: "180 в упор", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Гномік", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Смертник", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Імпульсо в упор на перекладині", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Кід Тарзан", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Халявний єгер з вису позаду", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "САЛЬТО", divType: "простий" },
+  { name: "360 з упору", points: 4, category: "ДИНАМІКА", group: "A", divGroup: "ГРАДУСИ", divType: "простий" },
+  // [Група елементів B — Середній рівень]
+  { name: "Адлер", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ОБЕРТИ", divType: "складний" },
+  { name: "Верхній брейк", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Пір'їнка", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Переліт на брусах ноги нарізно", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ПЕРЕЛЬОТИ", divType: "простий" },
+  { name: "Голочка в імпульсо (підйом двома)", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Голочка на 180 (підйом двома)", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Заліт на підколіни", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Лач Гейнер бланшом (прямим тілом)", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ЗІСКОКИ", divType: "складний" },
+  { name: "360 звичайний / в зворотній хват / з різнохвата", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "360 в різнохват", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "360 з-під ліктів", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "360 із зворотнього хвата", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "180 в Великих обертах", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ОБЕРТИ", divType: "простий" },
+  { name: "Переліт на 180 з виходу на три", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ПЕРЕЛЬОТИ", divType: "простий" },
+  { name: "Заліт двома ноги нарізно", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Внутрішнє з вису позаду", points: 5, category: "ДИНАМІКА", group: "B", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "V 360 з 1 ногою", points: 6, category: "ДИНАМІКА", group: "B", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Гвинтокрил", points: 6, category: "ДИНАМІКА", group: "B", divGroup: "ТЕХНІЧНІ", divType: "складний" },
+  { name: "Ткач на брусах", points: 6, category: "ДИНАМІКА", group: "B", divGroup: "ПЕРЕЛЬОТИ", divType: "простий" },
+  { name: "Гінгер", points: 6, category: "ДИНАМІКА", group: "B", divGroup: "САЛЬТО", divType: "простий" },
+  { name: "Внутрішній Лач Гейнер", points: 6, category: "ДИНАМІКА", group: "B", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Кумкват", points: 6, category: "ДИНАМІКА", group: "B", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Х виліт", points: 6, category: "ДИНАМІКА", group: "B", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "540", points: 6, category: "ДИНАМІКА", group: "B", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Переднє сальто з упору", points: 6, category: "ДИНАМІКА", group: "B", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Сальто на брусах вперед", points: 6, category: "ДИНАМІКА", group: "B", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Зворотній х-виліт", points: 6, category: "ДИНАМІКА", group: "B", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Гінгер в підкоління", points: 7, category: "ДИНАМІКА", group: "B", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  { name: "Перешмиг", points: 7, category: "ДИНАМІКА", group: "B", divGroup: "ТЕХНІЧНІ", divType: "складний" },
+  { name: "Великі оберти", points: 7, category: "ДИНАМІКА", group: "B", divGroup: "ОБЕРТИ", divType: "складний" },
+  { name: "Переліт кутом", points: 7, category: "ДИНАМІКА", group: "B", divGroup: "ПЕРЕЛЬОТИ", divType: "складний" },
+  { name: "V 360 ноги разом", points: 7, category: "ДИНАМІКА", group: "B", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Супер олі", points: 7, category: "ДИНАМІКА", group: "B", divGroup: "ПЕРЕЛЬОТИ", divType: "простий" },
+  { name: "540 з одної руки", points: 7, category: "ДИНАМІКА", group: "B", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Мортал в сед", points: 7, category: "ДИНАМІКА", group: "B", divGroup: "САЛЬТО", divType: "простий" },
+  { name: "360 з виходу на 3", points: 7, category: "ДИНАМІКА", group: "B", divGroup: "ПЕРЕЛЬОТИ", divType: "простий" },
+  { name: "Переднє сальто з місяцю", points: 7, category: "ДИНАМІКА", group: "B", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Сальто на брусах назад", points: 7, category: "ДИНАМІКА", group: "B", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Дабл 360", points: 8, category: "ДИНАМІКА", group: "B", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "Стакер на 360", points: 8, category: "ДИНАМІКА", group: "B", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Перехват з упора (з оборотів) в зворотній хват", points: 8, category: "ДИНАМІКА", group: "B", divGroup: "ТЕХНІЧНІ", divType: "складний" },
+  { name: "Перишко на 360", points: 8, category: "ДИНАМІКА", group: "B", divGroup: "ГРАДУСИ", divType: "простий" },
+  { name: "Сальто на брусах назад в упор", points: 8, category: "ДИНАМІКА", group: "B", divGroup: "САЛЬТО", divType: "простий" },
+  { name: "Егер з вису позаду (Переднє сальто в зачеп з вису позаду)", points: 8, category: "ДИНАМІКА", group: "B", divGroup: "САЛЬТО", divType: "простий" },
+  { name: "Мортіра", points: 8, category: "ДИНАМІКА", group: "B", divGroup: "ЗІСКОКИ", divType: "простий" },
+  { name: "Заліт на 180 в імпульсо на маху назад - 'LVD'", points: 8, category: "ДИНАМІКА", group: "B", divGroup: "ТЕХНІЧНІ", divType: "простий" },
+  // [Група елементів C — Високий рівень]
+  { name: "Дабл 540", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "Голочка в нижній хват (підйом двома)", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "ТЕХНІЧНІ", divType: "складний" },
+  { name: "Сальто на брусах вперед в упор", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "САЛЬТО", divType: "складний" },
+  { name: "Переліт з чеських", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "ПЕРЕЛЬОТИ", divType: "складний" },
+  { name: "Італійські оберти", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "ОБЕРТИ", divType: "складний" },
+  { name: "Бек ту бек", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "ЗІСКОКИ", divType: "складний" },
+  { name: "Мартіра бланшом", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "ЗІСКОКИ", divType: "складний" },
+  { name: "Палм дроп", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "ЗІСКОКИ", divType: "складний" },
+  { name: "Переліт Балаєва", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "ПЕРЕЛЬОТИ", divType: "складний" },
+  { name: "Гвинт", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "ГВИНТИ", divType: "складний" },
+  { name: "Кумкват на 180 в зачіп", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "САЛЬТО", divType: "складний" },
+  { name: "Кумкват з однієї ноги в зачіп", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "САЛЬТО", divType: "складний" },
+  { name: "Скльопка на одну руку", points: 9, category: "ДИНАМІКА", group: "C", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Передні 720", points: 10, category: "ДИНАМІКА", group: "C", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "Халявний 720", points: 10, category: "ДИНАМІКА", group: "C", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "Переліт Маркелова", points: 10, category: "ДИНАМІКА", group: "C", divGroup: "ПЕРЕЛЬОТИ", divType: "складний" },
+  { name: "V виліт на 360", points: 10, category: "ДИНАМІКА", group: "C", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "Мега олі", points: 10, category: "ДИНАМІКА", group: "C", divGroup: "ПЕРЕЛЬОТИ", divType: "складний" },
+  { name: "Барспін", points: 10, category: "ДИНАМІКА", group: "C", divGroup: "САЛЬТО", divType: "складний" },
+  { name: "Кумкват гвинтом", points: 11, category: "ДИНАМІКА", group: "C", divGroup: "ГВИНТИ", divType: "складний" },
+  { name: "Бек ту бек бланшом", points: 11, category: "ДИНАМІКА", group: "C", divGroup: "ЗІСКОКИ", divType: "складний" },
+  { name: "Переліт Ткачова із заднього вису", points: 11, category: "ДИНАМІКА", group: "C", divGroup: "ПЕРЕЛЬОТИ", divType: "складний" },
+  { name: "Манендес (тарелка)", points: 11, category: "ДИНАМІКА", group: "C", divGroup: "ТЕХНІЧНІ", divType: "складний" },
+  { name: "Контр бокове", points: 11, category: "ДИНАМІКА", group: "C", divGroup: "ЗІСКОКИ", divType: "складний" },
+  { name: "Переліт через турнік ноги нарізно (епсілант)", points: 11, category: "ДИНАМІКА", group: "C", divGroup: "ПЕРЕЛЬОТИ", divType: "складний" },
+  { name: "Палм дроп з сонечка", points: 11, category: "ДИНАМІКА", group: "C", divGroup: "ЗІСКОКИ", divType: "складний" },
+  { name: "Корнаж", points: 11, category: "ДИНАМІКА", group: "C", divGroup: "ТЕХНІЧНІ", divType: "складний" },
+  { name: "Контр переднє", points: 12, category: "ДИНАМІКА", group: "C", divGroup: "ЗІСКОКИ", divType: "складний" },
+  { name: "Вихід на 3 на 540", points: 12, category: "ДИНАМІКА", group: "C", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "Халявний 900", points: 12, category: "ДИНАМІКА", group: "C", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "Супра 540", points: 12, category: "ДИНАМІКА", group: "C", divGroup: "ГРАДУСИ", divType: "складний" },
+  // [Група елементів D — Надвисокий рівень]
+  { name: "Подвійний Лач Гейнер", points: 13, category: "ДИНАМІКА", group: "D", divGroup: "ЗІСКОКИ", divType: "складний" },
+  { name: "Оберти в задньому вису", points: 13, category: "ДИНАМІКА", group: "D", divGroup: "ОБЕРТИ", divType: "складний" },
+  { name: "Кумкват в зацеп", points: 14, category: "ДИНАМІКА", group: "D", divGroup: "САЛЬТО", divType: "складний" },
+  { name: "Сонечко на 360 халявне", points: 14, category: "ДИНАМІКА", group: "D", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "Егер (Переднє сальто в зачеп)", points: 14, category: "ДИНАМІКА", group: "D", divGroup: "САЛЬТО", divType: "складний" },
+  { name: "2 Гвинти", points: 14, category: "ДИНАМІКА", group: "D", divGroup: "ГВИНТИ", divType: "складний" },
+  { name: "Дельчев", points: 15, category: "ДИНАМІКА", group: "D", divGroup: "САЛЬТО", divType: "складний" },
+  { name: "Muscle up 540", points: 15, category: "ДИНАМІКА", group: "D", divGroup: "ПЕРЕЛЬОТИ", divType: "складний" },
+  { name: "Чеські оберти", points: 15, category: "ДИНАМІКА", group: "D", divGroup: "ОБЕРТИ", divType: "складний" },
+  { name: "Х виліт на 360", points: 15, category: "ДИНАМІКА", group: "D", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "720 звичайний хват / з різнохвата", points: 16, category: "ДИНАМІКА", group: "D", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "Петля корбут на 180", points: 16, category: "ДИНАМІКА", group: "D", divGroup: "САЛЬТО", divType: "складний" },
+  // [Елементи надвисокої складності — Максимальний рівень]
+  { name: "Кінг 540", points: 17, category: "ДИНАМІКА", group: "E", divGroup: "ПЕРЕЛЬОТИ", divType: "складний" },
+  { name: "Бек ту бек гвинтом", points: 17, category: "ДИНАМІКА", group: "E", divGroup: "ГВИНТИ", divType: "складний" },
+  { name: "Сонечко на 360", points: 17, category: "ДИНАМІКА", group: "E", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "900", points: 18, category: "ДИНАМІКА", group: "E", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "720 із зворотнього хвата", points: 18, category: "ДИНАМІКА", group: "E", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "Петля Корбут", points: 18, category: "ДИНАМІКА", group: "E", divGroup: "САЛЬТО", divType: "складний" },
+  { name: "Бек ту бек на 180 в зачіп", points: 18, category: "ДИНАМІКА", group: "E", divGroup: "САЛЬТО", divType: "складний" },
+  { name: "Королівский виліт", points: 19, category: "ДИНАМІКА", group: "E", divGroup: "ТЕХНІЧНІ", divType: "складний" },
+  { name: "Гінгер на 540", points: 20, category: "ДИНАМІКА", group: "E", divGroup: "ТЕХНІЧНІ", divType: "складний" },
+  { name: "Контр переднє в зацеп", points: 23, category: "ДИНАМІКА", group: "E", divGroup: "САЛЬТО", divType: "складний" },
+  { name: "Бек ту бек в зацеп", points: 25, category: "ДИНАМІКА", group: "E", divGroup: "САЛЬТО", divType: "складний" },
+  { name: "Подвійний внутряк", points: 25, category: "ДИНАМІКА", group: "E", divGroup: "ЗІСКОКИ", divType: "складний" },
+  { name: "Гвинт в гейнер", points: 26, category: "ДИНАМІКА", group: "E", divGroup: "ГВИНТИ", divType: "складний" },
+  { name: "Халявний 1080", points: 28, category: "ДИНАМІКА", group: "E", divGroup: "ГРАДУСИ", divType: "складний" },
+  { name: "Тріпл лач", points: 30, category: "ДИНАМІКА", group: "E", divGroup: "ЗІСКОКИ", divType: "складний" },
+  { name: "Переліт Ткачова з великих обертів (велика складність)", points: 30, category: "ДИНАМІКА", group: "E", divGroup: "ПЕРЕЛЬОТИ", divType: "складний" },
+  { name: "1080", points: 35, category: "ДИНАМІКА", group: "E", divGroup: "ГРАДУСИ", divType: "складний" },
+  // ═══════════════ СТАТОДИНАМІКА ═══════════════
+  // [Група елементів А — Базовий рівень]
+  { name: "Виделка - капітанський", points: 1, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Підйом ластівки з однією ногою до перекладини", points: 1, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПІДТЯГУВАННЯ", divType: "простий" },
+  { name: "Підйом переворотом", points: 1, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Підтягування в висі з 1 ногою", points: 1, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПІДТЯГУВАННЯ", divType: "простий" },
+  { name: "Підтягування в ластівці з 1 ногою", points: 1, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПІДТЯГУВАННЯ", divType: "простий" },
+  { name: "Підйом ластівки до перекладини", points: 2, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПІДТЯГУВАННЯ", divType: "простий" },
+  { name: "Вихід з жабки в стійку", points: 2, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВІДТИСКАННЯ", divType: "простий" },
+  { name: "Вихід на одну", points: 2, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Друкарська машинка", points: 2, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПЕРЕКАТИ", divType: "простий" },
+  { name: "Вихід Семенова", points: 2, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Підтягування в ластівці ноги широко (>45 градусів між ногами)", points: 2, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПІДТЯГУВАННЯ", divType: "простий" },
+  { name: "Підтягування в передньому висі ноги широко (>45 градусів між ногами)", points: 2, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПІДТЯГУВАННЯ", divType: "простий" },
+  { name: "Маховий вихід в стійку", points: 3, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Офіцерський вихід", points: 3, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Крабік", points: 3, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Метелик", points: 3, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Капітанський", points: 3, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Рушник", points: 3, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Опускання зі стійки в horizontal упор", points: 3, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПЕРЕКАТИ", divType: "простий" },
+  { name: "Підйом переднього вису до перекладини", points: 3, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПІДТЯГУВАННЯ", divType: "простий" },
+  { name: "Силовий вихід в стійку", points: 4, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Вихід на дві", points: 4, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Вихід на дві кільця", points: 4, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Підйом з кута в передній вис", points: 4, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПІДТЯГУВАННЯ", divType: "простий" },
+  { name: "Іспанський вихід", points: 4, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Вихід принца на одну", points: 4, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Силовий оберт вперед в задньому упорі", points: 4, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ОБЕРТИ", divType: "складний" },
+  { name: "Спічаг ноги нарізно", points: 4, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Рушник задній", points: 4, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Підйом з вису силою в передній вис", points: 4, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Підтягування в ластівці ноги широко (<45 градусів між ногами)", points: 4, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Підтягування в передньому висі ноги широко (<45 градусів між ногами)", points: 4, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Калісто", points: 5, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Підтягування в задньому висі (середня постановка рук)", points: 5, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПІДТЯГУВАННЯ", divType: "простий" },
+  { name: "Царський (ангел на одну)", points: 5, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  { name: "Опускання зі стійки в горизонт ноги нарізно", points: 5, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПЕРЕКАТИ", divType: "складний" },
+  { name: "Віджимання в стійці на руках", points: 5, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВІДТИСКАННЯ", divType: "простий" },
+  { name: "Опускання з упора під турніком в ластівку", points: 5, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ПЕРЕКАТИ", divType: "простий" },
+  { name: "Вихід з-під кілець", points: 5, category: "СТАТОДИНАМІКА", group: "A", divGroup: "ВИХОДИ", divType: "простий" },
+  // ================= Група елементів B =================
+  { name: "Спічаг ноги разом", points: 6, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Віджимання в горизонті ноги нарізно", points: 6, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Віджимання в стійці на руках з хлопком", points: 6, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Мартілос", points: 6, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Опускання зі стійки в горизонт схрестним (вузьким) хватом ноги нарізно", points: 6, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ПЕРЕКАТИ", divType: "складний" },
+  { name: "Арчер в стійці на руках", points: 6, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "простий" },
+  { name: "Вижим з хреста", points: 6, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Перекат в силовому упорі", points: 6, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ПЕРЕКАТИ", divType: "простий" },
+  { name: "Підтягування на одній", points: 6, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ПІДТЯГУВАННЯ", divType: "простий" },
+  { name: "Спічаг ноги нарізно з кута", points: 7, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Арчер ноги широко", points: 7, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "простий" },
+  { name: "Підтягування в задньому висі (широка постановка рук)", points: 7, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Підтягування в передньому висі (середня та вузька постановка рук)", points: 7, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Китайський Спічаг (руки широко) нарізно", points: 7, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Вижим з крокодила в горизонт ноги широко вузьким хватом", points: 7, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Опускання зі стійки в горизонт ноги разом", points: 7, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ПЕРЕКАТИ", divType: "складний" },
+  { name: "Підйом з горизонта ноги широко у стійку", points: 7, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Підйом переворот однією рукою", points: 7, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Спічаг ігуана", points: 7, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "180 в стійці", points: 8, category: "СТАТОДИНАМІКА", group: "B", divGroup: "РІЗНОХВАТИ", divType: "простий" },
+  { name: "90° віджимання в стійці на руках", points: 8, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Віджимання в широкому горизонті ноги нарізно", points: 8, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Спічаг ноги разом з кута", points: 8, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Китайський Спічаг (руки широко) фулл", points: 9, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Арчер в передньому висі", points: 9, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ПІДТЯГУВАННЯ", divType: "простий" },
+  { name: "Спічаг з кута в ігуані", points: 9, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Підйом з вису силою в передній вис на 1 руці", points: 9, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Арчер ноги разом", points: 9, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "простий" },
+  { name: "Віджимання в горизонті ноги разом", points: 9, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Опускання зі стійки в горизонт схрестним (вузьким) хватом ноги разом", points: 9, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ПЕРЕКАТИ", divType: "складний" },
+  { name: "Силовий вихід із-під турніка", points: 10, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Підйом з горизонта ноги разом у стійку", points: 10, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Імпосібл (dip) на брусах", points: 10, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Віджимання в широкому горизонті ноги разом (Фул)", points: 10, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Підйом в притиснутий вис (Touch)", points: 10, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ПІДТЯГУВАННЯ", divType: "простий" },
+  { name: "Підйом з горизонта схрестним чи вузьким хватом ноги нарізно у стійку", points: 10, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Вижим з крокодила в фул планш вузьким хватом або навхресним", points: 10, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Підтягування у задньому висі на одній руці", points: 10, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Підйом літака ноги широко", points: 10, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Підтягування в передньому висі (широка постановка рук)", points: 10, category: "СТАТОДИНАМІКА", group: "B", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  // ================= Група елементів C =================
+  { name: "Принц", points: 11, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Унікобра", points: 11, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Опускання з горизонту (фул) в літак на кільцях", points: 11, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ПЕРЕКАТИ", divType: "складний" },
+  { name: "Підйом літака ноги широко (на перекладині)", points: 11, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Підйом літака ноги широко (на перекладині зворотнім хватом)", points: 12, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Широкий арчер у передньому висі", points: 12, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Арчер у імпосіблі", points: 12, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Вихід однією рукою", points: 12, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Унікобра з ластівки", points: 12, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Вихід принца з ластіки", points: 13, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Підйом в широкий притиснутий вис (Touch)", points: 13, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Вихід принца верхнім хватом", points: 13, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Віджимання в стійці на руках глибокі (плечі і лікті нижче лінії брус)", points: 13, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Підйом дивану", points: 13, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Глибокий імпосібл", points: 13, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Ангел", points: 14, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Підйом з літака в стійку", points: 14, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Імпосібл на кільцах", points: 14, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Вихід принца арчер з ластівки", points: 14, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Підйом з горизонта вузьким хватом ноги разом у стійку", points: 15, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Перекати в пердньому висі (широкому притиснутому)", points: 15, category: "СТАТОДИНАМІКА", group: "C", divGroup: "ПЕРЕКАТИ", divType: "складний" },
+  // ================= Група елементів D =================
+  { name: "Підйом з літака в горизонт ноги разом (кільця)", points: 16, category: "СТАТОДИНАМІКА", group: "D", divGroup: "ПЕРЕКАТИ", divType: "складний" },
+  { name: "Підйом у диван на підлозі", points: 16, category: "СТАТОДИНАМІКА", group: "D", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Фляк в горизонт", points: 16, category: "СТАТОДИНАМІКА", group: "D", divGroup: "САЛЬТО", divType: "складний" },
+  { name: "Підйом з horizontal схрестним ноги разом у стійку", points: 17, category: "СТАТОДИНАМІКА", group: "D", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Підтягування у передньому висі на одній руці (чисто)", points: 20, category: "СТАТОДИНАМІКА", group: "D", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Вихід принца рівними руками (накаяма)", points: 20, category: "СТАТОДИНАМІКА", group: "D", divGroup: "ВИХОДИ", divType: "складний" },
+  // ================= Елементи надвисокої складності =================
+  { name: "Підйом з дед планшу в горизонт ноги разом", points: 21, category: "СТАТОДИНАМІКА", group: "E", divGroup: "ПЕРЕКАТИ", divType: "складний" },
+  { name: "Підтягування у SAT", points: 21, category: "СТАТОДИНАМІКА", group: "E", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Накаяма на кільцях (з ластівки в хрест)", points: 22, category: "СТАТОДИНАМІКА", group: "E", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Карузо (Caruso) (підтягування з виса у victorian cross)", points: 23, category: "СТАТОДИНАМІКА", group: "E", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Підьйом в SAT", points: 24, category: "СТАТОДИНАМІКА", group: "E", divGroup: "ПІДТЯГУВАННЯ", divType: "складний" },
+  { name: "Пелікан фулл", points: 28, category: "СТАТОДИНАМІКА", group: "E", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Хлопок за спину в горизонті", points: 30, category: "СТАТОДИНАМІКА", group: "E", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Пелікан на кільцях (з ластівки в фул)", points: 30, category: "СТАТОДИНАМІКА", group: "E", divGroup: "ВИХОДИ", divType: "складний" },
+  { name: "Хлопок за спину в горизонті фулл", points: 35, category: "СТАТОДИНАМІКА", group: "E", divGroup: "ВІДТИСКАННЯ", divType: "складний" },
+  { name: "Ван Гельдер", points: 35, category: "СТАТОДИНАМІКА", group: "E", divGroup: "ВИХОДИ", divType: "складний" },
+];
+</script>
+<script type="text/babel">
+const { useState, useMemo, useEffect } = React;
+
+// ── базовий масив + накладені зміни (overrides) + додані елементи (added) ──
+const BASE = (window.GYMNASTICS_ELEMENTS || []).map((el, i) => ({ ...el, _origName: el.name, _idx: i }));
+const GROUP_BONUS = { A: 1, B: 2, C: 3, D: 4, E: 5 };
+const GROUPS = ['A', 'B', 'C', 'D', 'E'];
+const OV_KEY = 'kalc_overrides_v1';
+const ADD_KEY = 'kalc_added_v1';
+const ABSENT = 'відсутнє';
+const ADMIN_HASH = 'bcec035248d4985544a1ca23db270d401a62e823919cc4f138d4f92c9065faae';
+let _uid = 1;
+
+const CATEGORIES = ['СТАТИКА', 'СТАТОДИНАМІКА', 'ДИНАМІКА'];
+const catFull = c => ({ 'СТАТИКА': 'Статика', 'СТАТОДИНАМІКА': 'Стато-динаміка', 'ДИНАМІКА': 'Динаміка' }[c] || c);
+const DIV_GROUPS = Array.from(new Set(BASE.map(e => e.divGroup).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+function loadJSON(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch (e) { return fallback; } }
+function saveJSON(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+
+function normDiv(m) { if (!m.divGroup || m.divGroup === ABSENT) { m.divGroup = ''; m.divType = ''; } return m; }
+
+function mergeElements(base, ov, added) {
+  const baseMerged = base.map((el, i) => {
+    const o = ov[el._origName];
+    const m = o ? { ...el, ...o } : { ...el };
+    m.id = i; m._key = 'b' + i; m._origName = el._origName; m._added = false;
+    return normDiv(m);
+  });
+  const addedMerged = (added || []).map((el, i) => {
+    const m = { ...el };
+    m.id = base.length + i; m._key = 'a' + el._addedId; m._added = true; m._addedId = el._addedId;
+    return normDiv(m);
+  });
+  return baseMerged.concat(addedMerged);
+}
+
+async function sha256hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ── бали за одну комбінацію (бонус за групи, лише якщо 3+ елементи) ──
+function comboBonusOf(elements) {
+  if (elements.length < 3) return 0;
+  return elements.reduce((s, el) => s + (GROUP_BONUS[el.group] || 0), 0);
+}
+
+// ── різноманіття: кожна група рахується 1 раз, складний > простий ──
+const SPECIAL_DIVERSITY_GROUPS = new Set(['ГВИНТИ', 'ЛІТАКИ', 'ДИВАНИ', 'ХРЕСТИ']);
+function diversityPoints(divGroup, divType) {
+  const special = SPECIAL_DIVERSITY_GROUPS.has(divGroup);
+  if (divType === 'складний') return special ? 6 : 4;
+  if (divType === 'простий') return special ? 4 : 2;
+  return 0;
+}
+function diversityOf(elements) {
+  const best = {};
+  elements.forEach(el => {
+    if (!el.divGroup) return;
+    if (el.divType === 'складний') best[el.divGroup] = 'складний';
+    else if (el.divType === 'простий' && best[el.divGroup] !== 'складний') best[el.divGroup] = 'простий';
+  });
+  const rows = Object.entries(best).map(([g, t]) => ({ group: g, type: t, pts: diversityPoints(g, t) }));
+  rows.sort((a, b) => b.pts - a.pts || a.group.localeCompare(b.group));
+  return { rows, total: rows.reduce((s, r) => s + r.pts, 0) };
+}
+
+function allUsed(combos) { return combos.flatMap(c => c.elements); }
+function elementPointsByCat(combos, cat) {
+  return allUsed(combos).filter(e => e.category === cat).reduce((s, e) => s + e.points, 0);
+}
+
+const PRESETS = [
+  { label: 'Статика без фіксації', amount: 1 },
+  { label: 'Невдала динаміка', amount: 2 },
+  { label: 'Падіння', amount: 3 },
+  { label: 'Зловживання повторами', amount: 5 },
+];
+const BONUS_PRESETS = [
+  { label: 'Чисте виконання', amount: 1 },
+  { label: 'Складний вхід', amount: 2 },
+  { label: 'Оригінальний елемент', amount: 2 },
+  { label: 'Артистизм', amount: 1 },
+];
+const BLANK = { name: '', points: 1, category: 'СТАТИКА', group: 'A', divGroup: '', divType: 'простий', tutorial: '' };
+
+const Icon = ({ name, className }) =>
+  <span className={'ico ico-' + name + (className ? ' ' + className : '')} aria-hidden="true" />;
+
+const diffClass = t => 'tag ' + (t === 'складний' ? 'tag-hard' : 'tag-easy');
+
+function useEsc(onClose) {
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = prev; };
+  }, [onClose]);
+}
+
+function Readout({ label, value, sign, tone }) {
+  return (
+    <div className={'readout' + (tone === 'danger' ? ' readout-danger' : '') + (tone === 'pos' ? ' readout-pos' : '')}>
+      <div className="readout-label">{label}</div>
+      <div className="readout-value mono">{sign || ''}{value}</div>
+    </div>
+  );
+}
+
+// ════════════════ ДЕТАЛІЗАЦІЯ (те, що бачив суддя) ════════════════
+function DetailModal({ combos, penalties, bonuses, onClose }) {
+  useEsc(onClose);
+  const stat = elementPointsByCat(combos, 'СТАТИКА');
+  const dyn = elementPointsByCat(combos, 'ДИНАМІКА');
+  const sd = elementPointsByCat(combos, 'СТАТОДИНАМІКА');
+  const comboBonus = combos.reduce((s, c) => s + comboBonusOf(c.elements), 0);
+  const div = diversityOf(allUsed(combos));
+  const pen = penalties.reduce((s, p) => s + p.amount, 0);
+  const bon = bonuses.reduce((s, b) => s + b.amount, 0);
+  const elementsTotal = stat + dyn + sd;
+  const total = elementsTotal + comboBonus + div.total + bon - pen;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <div className="eyebrow">Суддівський протокол</div>
+            <h2 className="modal-title">Деталізація оцінки</h2>
+          </div>
+          <button className="icon-btn" onClick={onClose} aria-label="Закрити"><Icon name="close" /></button>
+        </div>
+
+        <div className="modal-body">
+          <div className="readout-grid">
+            <Readout label="Статика" value={stat} />
+            <Readout label="Динаміка" value={dyn} />
+            <Readout label="Стато-динаміка" value={sd} />
+            <Readout label="Бонус комбінацій" value={comboBonus} sign="+" />
+            <Readout label="Різноманіття" value={div.total} sign="+" />
+            <Readout label="Додаткові бали" value={bon} sign="+" tone="pos" />
+            <Readout label="Штрафи" value={pen} sign="−" tone="danger" />
+          </div>
+
+          <section className="panel">
+            <h3 className="panel-title">Закриті групи різноманіття</h3>
+            {div.rows.length === 0
+              ? <p className="muted">Ще не закрито жодної групи</p>
+              : <div className="tag-row">
+                  {div.rows.map(r => (
+                    <span key={r.group} className={diffClass(r.type)}>{r.group} · {r.type} <b>+{r.pts}</b></span>
+                  ))}
+                </div>}
+          </section>
+
+          {bonuses.length > 0 &&
+            <section className="panel">
+              <h3 className="panel-title">Додаткові бали</h3>
+              <div className="stack">
+                {bonuses.map(b => (
+                  <div key={b.id} className="line line-pos">
+                    <span>{b.label}</span>
+                    <span className="mono pos">+{b.amount}</span>
+                  </div>
+                ))}
+              </div>
+            </section>}
+
+          <section className="panel">
+            <h3 className="panel-title">Нараховані штрафи</h3>
+            {penalties.length === 0
+              ? <p className="muted">Штрафів немає</p>
+              : <div className="stack">
+                  {penalties.map(p => (
+                    <div key={p.id} className="line line-danger">
+                      <span>{p.label}</span>
+                      <span className="mono neg">−{p.amount}</span>
+                    </div>
+                  ))}
+                </div>}
+          </section>
+
+          <div className="final-math">
+            <span className="mono">{elementsTotal}</span>
+            <span className="op">+</span>
+            <span className="mono">{comboBonus}</span>
+            <span className="op">+</span>
+            <span className="mono">{div.total}</span>
+            <span className="op">+</span>
+            <span className="mono pos">{bon}</span>
+            <span className="op">−</span>
+            <span className="mono neg">{pen}</span>
+            <span className="op">=</span>
+            <span className="mono total-inline">{total}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════ КАТАЛОГ ════════════════
+function CatalogModal({ elements, onClose }) {
+  useEsc(onClose);
+  const [q, setQ] = useState('');
+  const [cat, setCat] = useState('');
+  const [sort, setSort] = useState('name');
+
+  const list = useMemo(() => {
+    let l = elements.filter(e => e.name.toLowerCase().includes(q.trim().toLowerCase()));
+    if (cat) l = l.filter(e => e.category === cat);
+    l = l.slice();
+    if (sort === 'pts-desc') l.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+    else if (sort === 'pts-asc') l.sort((a, b) => a.points - b.points || a.name.localeCompare(b.name));
+    else l.sort((a, b) => a.name.localeCompare(b.name));
+    return l;
+  }, [elements, q, cat, sort]);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal-wide" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <div className="eyebrow">Довідник</div>
+            <h2 className="modal-title">Каталог елементів</h2>
+          </div>
+          <button className="icon-btn" onClick={onClose} aria-label="Закрити"><Icon name="close" /></button>
+        </div>
+
+        <div className="modal-body">
+          <div className="cat-controls">
+            <div className="search-wrap">
+              <input className="field" value={q} onChange={e => setQ(e.target.value)}
+                placeholder="Пошук за назвою…" aria-label="Пошук у каталозі" />
+            </div>
+            <div className="cat-filter-row">
+              <div className="seg">
+                <button className={'seg-btn' + (cat === '' ? ' active' : '')} onClick={() => setCat('')}>Усі</button>
+                {CATEGORIES.map(c => (
+                  <button key={c} className={'seg-btn' + (cat === c ? ' active' : '')} onClick={() => setCat(c)}>{catFull(c)}</button>
+                ))}
+              </div>
+            </div>
+            <div className="cat-filter-row cat-filter-between">
+              <div className="seg">
+                <button className={'seg-btn' + (sort === 'name' ? ' active' : '')} onClick={() => setSort('name')}>За назвою</button>
+                <button className={'seg-btn' + (sort === 'pts-desc' ? ' active' : '')} onClick={() => setSort('pts-desc')}>Бали ↓</button>
+                <button className={'seg-btn' + (sort === 'pts-asc' ? ' active' : '')} onClick={() => setSort('pts-asc')}>Бали ↑</button>
+              </div>
+              <span className="cat-count">Знайдено: {list.length}</span>
+            </div>
+          </div>
+
+          <div className="cat-list">
+            {list.length === 0
+              ? <p className="muted">Нічого не знайдено</p>
+              : list.map(e => (
+                  <div key={e._key} className="cat-card">
+                    <div className="cat-card-top">
+                      <div className="cat-name">{e.name}{e._added && <span className="cat-new-tag">новий</span>}</div>
+                      <span className="pts-chip mono">{e.points}</span>
+                    </div>
+                    <div className="cat-badges">
+                      <span className="cat-badge cat-badge-cat">{catFull(e.category)}</span>
+                      <span className="cat-badge">Група {e.group}</span>
+                      {e.divGroup
+                        ? <span className={diffClass(e.divType)}>{e.divGroup} · {e.divType}</span>
+                        : <span className="cat-badge">різноманіття відсутнє</span>}
+                    </div>
+                    {e.tutorial
+                      ? <a className="tut-link" href={e.tutorial} target="_blank" rel="noopener noreferrer"><Icon name="play" /> Відкрити обучалку</a>
+                      : <span className="tut-none">Обучалка ще не додана</span>}
+                  </div>
+                ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════ АДМІН: редактор (створення / редагування) ════════════════
+function AdminEditor({ el, isNew, onSave, onBack, canDelete, onDelete }) {
+  const [name, setName] = useState(el.name);
+  const [points, setPoints] = useState(String(el.points));
+  const [category, setCategory] = useState(el.category);
+  const [group, setGroup] = useState(el.group || 'A');
+  const [divGroup, setDivGroup] = useState(el.divGroup ? el.divGroup : ABSENT);
+  const [divType, setDivType] = useState(el.divType || 'простий');
+  const [tutorial, setTutorial] = useState(el.tutorial || '');
+  const [saved, setSaved] = useState(false);
+  const isAbsent = divGroup === ABSENT;
+  const nameEmpty = !name.trim();
+
+  const save = () => {
+    if (nameEmpty) return;
+    onSave({
+      name: name.trim(),
+      points: Math.max(0, parseInt(points, 10) || 0),
+      category, group,
+      divGroup: isAbsent ? '' : divGroup,
+      divType: isAbsent ? '' : divType,
+      tutorial: tutorial.trim(),
+    });
+    if (!isNew) { setSaved(true); setTimeout(() => setSaved(false), 2200); }
+  };
+
+  return (
+    <div className="admin-form">
+      <button className="link-back" onClick={onBack}><span className="back-arrow" /> {isNew ? 'Скасувати' : 'До вибору елемента'}</button>
+
+      <div className="field-row">
+        <span className="field-label">Назва</span>
+        <input className="field" value={name} onChange={e => setName(e.target.value)} placeholder="Назва елемента" autoFocus={isNew} />
+      </div>
+
+      <div className="field-two">
+        <div className="field-row">
+          <span className="field-label">Бали</span>
+          <input className="field field-num" type="number" min="0" value={points} onChange={e => setPoints(e.target.value)} />
+        </div>
+        <div className="field-row">
+          <span className="field-label">Група складності</span>
+          <div className="seg seg-full">
+            {GROUPS.map(g => (
+              <button key={g} className={'seg-btn' + (group === g ? ' active' : '')} onClick={() => setGroup(g)}>{g}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="field-row">
+        <span className="field-label">Категорія</span>
+        <div className="seg seg-full">
+          {CATEGORIES.map(c => (
+            <button key={c} className={'seg-btn' + (category === c ? ' active' : '')} onClick={() => setCategory(c)}>{catFull(c)}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="field-row">
+        <span className="field-label">Різноманіття</span>
+        <select className="select" value={divGroup} onChange={e => setDivGroup(e.target.value)}>
+          <option value={ABSENT}>відсутнє (нічого не закриває)</option>
+          {DIV_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+        </select>
+      </div>
+
+      {!isAbsent &&
+        <div className="field-row">
+          <span className="field-label">Складність різноманіття</span>
+          <div className="seg seg-full">
+            <button className={'seg-btn' + (divType === 'простий' ? ' active-easy' : '')} onClick={() => setDivType('простий')}>Простий</button>
+            <button className={'seg-btn' + (divType === 'складний' ? ' active-hard' : '')} onClick={() => setDivType('складний')}>Складний</button>
+          </div>
+        </div>}
+
+      <div className="field-row">
+        <span className="field-label">Посилання на обучалку <span className="opt">(необов'язково)</span></span>
+        <input className="field" value={tutorial} onChange={e => setTutorial(e.target.value)} placeholder="https://…" />
+      </div>
+
+      <div className="admin-actions">
+        <button className="btn btn-primary" onClick={save} disabled={nameEmpty}>
+          <Icon name="check" /> {isNew ? 'Створити елемент' : 'Зберегти зміни'}
+        </button>
+        {saved && <span className="saved-flash"><Icon name="check" /> Збережено на цьому пристрої</span>}
+      </div>
+      {nameEmpty && <span className="admin-hint">Вкажи назву, щоб {isNew ? 'створити' : 'зберегти'}</span>}
+
+      {canDelete &&
+        <button className="btn btn-ghost-danger" onClick={onDelete}>Видалити цей елемент</button>}
+    </div>
+  );
+}
+
+// ════════════════ АДМІН: експорт даних для всіх ════════════════
+function ExportView({ elements, onBack }) {
+  const text = useMemo(() => {
+    const arr = elements.map(e => {
+      const o = { name: e.name, points: e.points, category: e.category, group: e.group, divGroup: e.divGroup || '', divType: e.divType || '' };
+      if (e.tutorial) o.tutorial = e.tutorial;
+      return o;
+    });
+    return 'window.GYMNASTICS_ELEMENTS = ' + JSON.stringify(arr, null, 2) + ';';
+  }, [elements]);
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2200); } catch (e) {}
+  };
+
+  return (
+    <div className="admin-form">
+      <button className="link-back" onClick={onBack}><span className="back-arrow" /> Назад</button>
+      <div className="admin-note">
+        Щоб зміни (правки та нові елементи) побачили <b>всі</b> користувачі, ця база має потрапити у сам файл сайту.
+        Скопіюй текст нижче, заміни ним увесь блок <b>window.GYMNASTICS_ELEMENTS = [ … ];</b> у файлі index.html
+        і залий на GitHub. Локальні зміни на цьому пристрої глобальними самі не стають.
+      </div>
+      <div className="admin-actions">
+        <button className="btn btn-primary" onClick={copy}><Icon name="copy" /> Скопіювати</button>
+        {copied && <span className="saved-flash"><Icon name="check" /> Скопійовано</span>}
+      </div>
+      <textarea className="export-area" readOnly value={text} onFocus={e => e.target.select()} />
+    </div>
+  );
+}
+
+// ════════════════ АДМІН: головне вікно ════════════════
+function AdminModal({ elements, onApplyBase, onUpdateAdded, onCreateAdded, onDeleteAdded, onReset, onClose }) {
+  useEsc(onClose);
+  const [unlocked, setUnlocked] = useState(false);
+  const [code, setCode] = useState('');
+  const [err, setErr] = useState(false);
+  const [q, setQ] = useState('');
+  const [selKey, setSelKey] = useState(null);
+  const [mode, setMode] = useState('pick'); // 'pick' | 'new' | 'export'
+  const [createdFlash, setCreatedFlash] = useState(false);
+
+  const submit = async () => {
+    try {
+      const h = await sha256hex(code);
+      if (h === ADMIN_HASH) { setUnlocked(true); setErr(false); }
+      else { setErr(true); }
+    } catch (e) { setErr(true); }
+  };
+
+  const found = q.trim() ? elements.filter(e => e.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 15) : [];
+  const selMerged = selKey ? elements.find(e => e._key === selKey) : null;
+
+  const handleSave = (fields) => {
+    if (selMerged._added) onUpdateAdded(selMerged._addedId, fields);
+    else onApplyBase(selMerged._origName, fields);
+  };
+  const handleCreate = (fields) => {
+    onCreateAdded(fields);
+    setMode('pick'); setQ('');
+    setCreatedFlash(true); setTimeout(() => setCreatedFlash(false), 2600);
+  };
+  const clearLocal = () => {
+    if (window.confirm('Стерти всі локальні зміни адміна (правки та додані елементи) на цьому пристрої?')) {
+      onReset(); setSelKey(null); setMode('pick');
+    }
+  };
+
+  let title = 'Потрібен код';
+  if (unlocked) title = mode === 'new' ? 'Новий елемент' : mode === 'export' ? 'Експорт для всіх' : selMerged ? 'Редагування елемента' : 'Редактор елементів';
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal-wide" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <div className="eyebrow">Службовий режим</div>
+            <h2 className="modal-title">{title}</h2>
+          </div>
+          <button className="icon-btn" onClick={onClose} aria-label="Закрити"><Icon name="close" /></button>
+        </div>
+
+        <div className="modal-body">
+          {!unlocked
+            ? <div className="admin-lock">
+                <span className="lock-badge"><Icon name="lock" className="accent" /></span>
+                <p className="muted">Введи код доступу, щоб редагувати елементи</p>
+                <input className="field" type="password" value={code}
+                  onChange={e => { setCode(e.target.value); setErr(false); }}
+                  onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+                  placeholder="Код доступу" aria-label="Код доступу" autoFocus />
+                {err && <span className="admin-err">Невірний код</span>}
+                <button className="btn btn-primary" onClick={submit}>Увійти</button>
+              </div>
+            : mode === 'export'
+              ? <ExportView elements={elements} onBack={() => setMode('pick')} />
+              : mode === 'new'
+                ? <AdminEditor key="new" el={BLANK} isNew onSave={handleCreate} onBack={() => setMode('pick')} />
+                : selMerged
+                  ? <AdminEditor key={selMerged._key} el={selMerged} onSave={handleSave} onBack={() => setSelKey(null)}
+                      canDelete={selMerged._added} onDelete={() => { onDeleteAdded(selMerged._addedId); setSelKey(null); }} />
+                  : <div className="admin-pick">
+                      <button className="btn btn-primary btn-add-new" onClick={() => setMode('new')}><Icon name="plus" /> Додати новий елемент</button>
+                      {createdFlash && <span className="saved-flash"><Icon name="check" /> Новий елемент створено</span>}
+                      <div className="admin-divider"><span>або редагувати наявний</span></div>
+                      <div className="field-row">
+                        <span className="field-label">Знайди елемент</span>
+                        <input className="field" value={q} onChange={e => setQ(e.target.value)}
+                          placeholder="Назва елемента…" aria-label="Пошук елемента" />
+                      </div>
+                      {found.length > 0 &&
+                        <div className="admin-pick-list">
+                          {found.map(e => (
+                            <button key={e._key} className="admin-pick-item" onClick={() => { setSelKey(e._key); setQ(''); }}>
+                              <div className="di-main">
+                                <div className="di-name">{e.name}{e._added && <span className="cat-new-tag">новий</span>}</div>
+                                <div className="di-meta">
+                                  <span>{catFull(e.category)} · Гр.{e.group}</span>
+                                  {e.divGroup ? <span className={diffClass(e.divType)}>{e.divGroup} · {e.divType}</span> : <span>різноманіття відсутнє</span>}
+                                </div>
+                              </div>
+                              <span className="pts-chip mono">{e.points}</span>
+                            </button>
+                          ))}
+                        </div>}
+                      <div className="admin-footer">
+                        <button className="btn btn-outline" onClick={() => setMode('export')}><Icon name="copy" /> Експорт для всіх</button>
+                        <button className="btn btn-ghost-danger admin-clear" onClick={clearLocal}>Стерти локальні зміни</button>
+                      </div>
+                    </div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════ ГОЛОВНИЙ ЕКРАН (калькулятор) ════════════════
+function Calculator({ elements }) {
+  const [combos, setCombos] = useState([]);
+  const [penalties, setPenalties] = useState([]);
+  const [bonuses, setBonuses] = useState([]);
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  const [pLabel, setPLabel] = useState('');
+  const [pAmt, setPAmt] = useState('');
+  const [bLabel, setBLabel] = useState('');
+  const [bAmt, setBAmt] = useState('');
+
+  const found = useMemo(() => {
+    if (!q.trim()) return [];
+    return elements.filter(e => e.name.toLowerCase().includes(q.toLowerCase())).slice(0, 12);
+  }, [q, elements]);
+
+  const addCombo = () => {
+    const id = _uid++;
+    setCombos(cs => [...cs, { id, elements: [] }]);
+    setOpen(id);
+  };
+  const addEl = (cid, el) => {
+    setCombos(cs => cs.map(c => c.id === cid ? { ...c, elements: [...c.elements, { ...el, uid: _uid++ }] } : c));
+    setQ('');
+  };
+  const rmEl = (cid, uid) => setCombos(cs => cs.map(c => c.id === cid ? { ...c, elements: c.elements.filter(e => e.uid !== uid) } : c));
+  const rmCombo = cid => { setCombos(cs => cs.filter(c => c.id !== cid)); setOpen(o => o === cid ? null : o); };
+
+  const addPPreset = p => setPenalties(ps => [...ps, { id: _uid++, label: p.label, amount: p.amount }]);
+  const addPCustom = () => {
+    const n = parseInt(pAmt, 10);
+    if (n > 0) { setPenalties(ps => [...ps, { id: _uid++, label: pLabel.trim() || 'Штраф', amount: n }]); setPAmt(''); setPLabel(''); }
+  };
+  const rmPen = id => setPenalties(ps => ps.filter(p => p.id !== id));
+
+  const addBPreset = b => setBonuses(bs => [...bs, { id: _uid++, label: b.label, amount: b.amount }]);
+  const addBCustom = () => {
+    const n = parseInt(bAmt, 10);
+    if (n > 0) { setBonuses(bs => [...bs, { id: _uid++, label: bLabel.trim() || 'Бонус', amount: n }]); setBAmt(''); setBLabel(''); }
+  };
+  const rmBonus = id => setBonuses(bs => bs.filter(b => b.id !== id));
+
+  const used = allUsed(combos);
+  const elementPoints = used.reduce((s, e) => s + e.points, 0);
+  const comboBonus = combos.reduce((s, c) => s + comboBonusOf(c.elements), 0);
+  const div = diversityOf(used);
+  const pen = penalties.reduce((s, p) => s + p.amount, 0);
+  const bon = bonuses.reduce((s, b) => s + b.amount, 0);
+  const total = elementPoints + comboBonus + div.total + bon - pen;
+
+  return (
+    <React.Fragment>
+      <div className="layout">
+        <aside className="col-search">
+          <div className="search-panel">
+            <div className="panel-head">
+              <Icon name="search" className="accent" />
+              <h2 className="panel-eyebrow">Пошук елементів</h2>
+            </div>
+            <div className="search-wrap">
+              <input className="field" value={q} onChange={e => setQ(e.target.value)}
+                placeholder="Назва елемента…" aria-label="Пошук елементів" />
+              {found.length > 0 &&
+                <div className="dropdown">
+                  {found.map(el => (
+                    <button key={el._key} className="dropdown-item" disabled={open === null}
+                      onClick={() => { if (open !== null) addEl(open, el); }}>
+                      <div className="di-main">
+                        <div className="di-name">{el.name}</div>
+                        <div className="di-meta">
+                          <span>{catFull(el.category)} · Гр.{el.group}</span>
+                          {el.divGroup && <span className={diffClass(el.divType)}>{el.divGroup} · {el.divType}</span>}
+                        </div>
+                      </div>
+                      <span className="pts-chip mono">{el.points}</span>
+                    </button>
+                  ))}
+                </div>}
+            </div>
+            <p className={'hint ' + (open === null ? 'hint-warn' : 'hint-ok')}>
+              <Icon name={open === null ? 'warn' : 'check'} />
+              <span>{open === null
+                ? 'Спершу відкрий комбінацію, щоб додавати до неї елементи'
+                : 'Клікай на елемент — він додасться у відкриту комбінацію'}</span>
+            </p>
+          </div>
+        </aside>
+
+        <main className="col-main">
+          <div className="section-head">
+            <h2 className="section-title">Комбінації</h2>
+            <button className="btn btn-primary" onClick={addCombo}><Icon name="plus" /> Нова комбінація</button>
+          </div>
+
+          {combos.length === 0
+            ? <div className="empty">
+                <p className="muted">Комбінацій ще немає</p>
+                <button className="btn btn-primary" onClick={addCombo}><Icon name="plus" /> Створити першу</button>
+              </div>
+            : <div className="stack-lg">
+                {combos.map((c, idx) => {
+                  const isOpen = open === c.id;
+                  const bonus = comboBonusOf(c.elements);
+                  const elPts = c.elements.reduce((s, e) => s + e.points, 0);
+                  const valid = c.elements.length >= 3;
+                  return (
+                    <div key={c.id} className={'combo' + (isOpen ? ' combo-open' : '')}>
+                      <button className="combo-head" onClick={() => setOpen(isOpen ? null : c.id)}>
+                        <span className="combo-head-left">
+                          <span className={'chevron' + (isOpen ? ' chevron-open' : '')}></span>
+                          <span className="combo-name">Комбінація {idx + 1}</span>
+                          <span className="combo-count">{c.elements.length} елем.</span>
+                          {!valid && c.elements.length > 0 && <span className="combo-warn">треба 3+ для бонусу</span>}
+                        </span>
+                        <span className="combo-score mono">{elPts + bonus}</span>
+                      </button>
+
+                      {isOpen &&
+                        <div className="combo-body">
+                          {c.elements.length === 0
+                            ? <p className="muted small">Знайди елемент у пошуку зліва та клікни на нього.</p>
+                            : <div className="stack">
+                                {c.elements.map(el => (
+                                  <div key={el.uid} className="el-line">
+                                    <span className="el-line-left">
+                                      <span className="grp-badge">Гр.{el.group}</span>
+                                      <span className="el-name">{el.name}</span>
+                                      {el.divGroup && <span className={diffClass(el.divType)}>{el.divGroup}</span>}
+                                    </span>
+                                    <span className="el-line-right">
+                                      <span className="mono el-pts">{el.points}</span>
+                                      <button className="icon-btn icon-btn-sm" onClick={() => rmEl(c.id, el.uid)} aria-label="Прибрати елемент"><Icon name="close" /></button>
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>}
+                          {valid &&
+                            <div className="combo-breakdown">
+                              <div className="cb-row"><span>Елементи</span><span className="mono num">{elPts}</span></div>
+                              <div className="cb-row"><span>Бонус за групи</span><span className="mono pos">+{bonus}</span></div>
+                            </div>}
+                          <button className="btn btn-ghost-danger" onClick={() => rmCombo(c.id)}>Видалити комбінацію</button>
+                        </div>}
+                    </div>
+                  );
+                })}
+              </div>}
+
+          <div className="section-head section-head-mt">
+            <h2 className="section-title">Додаткові бали</h2>
+          </div>
+          <div className="io-panel">
+            <div className="io-presets">
+              {BONUS_PRESETS.map(b => (
+                <button key={b.label} className="chip-pos" onClick={() => addBPreset(b)}>
+                  {b.label} <span className="mono">+{b.amount}</span>
+                </button>
+              ))}
+            </div>
+            <div className="io-custom">
+              <input className="field" value={bLabel} onChange={e => setBLabel(e.target.value)}
+                placeholder="За що бали" aria-label="Причина нарахування балів" />
+              <input className="field field-num" type="number" min="1" value={bAmt}
+                onChange={e => setBAmt(e.target.value)} placeholder="+бали" aria-label="Кількість балів" />
+              <button className="btn btn-pos" onClick={addBCustom} aria-label="Додати бали"><Icon name="plus" /></button>
+            </div>
+            {bonuses.length > 0 &&
+              <div className="stack">
+                {bonuses.map(b => (
+                  <div key={b.id} className="line line-pos">
+                    <span>{b.label}</span>
+                    <span className="line-right">
+                      <span className="mono pos">+{b.amount}</span>
+                      <button className="icon-btn icon-btn-sm" onClick={() => rmBonus(b.id)} aria-label="Прибрати бали"><Icon name="close" /></button>
+                    </span>
+                  </div>
+                ))}
+              </div>}
+          </div>
+
+          <div className="section-head section-head-mt">
+            <h2 className="section-title">Штрафи</h2>
+          </div>
+          <div className="io-panel">
+            <div className="io-presets">
+              {PRESETS.map(p => (
+                <button key={p.label} className="chip-danger" onClick={() => addPPreset(p)}>
+                  {p.label} <span className="mono">−{p.amount}</span>
+                </button>
+              ))}
+            </div>
+            <div className="io-custom">
+              <input className="field" value={pLabel} onChange={e => setPLabel(e.target.value)}
+                placeholder="Причина штрафу" aria-label="Причина штрафу" />
+              <input className="field field-num" type="number" min="1" value={pAmt}
+                onChange={e => setPAmt(e.target.value)} placeholder="−бали" aria-label="Кількість штрафних балів" />
+              <button className="btn btn-danger" onClick={addPCustom} aria-label="Додати штраф"><Icon name="plus" /></button>
+            </div>
+            {penalties.length > 0 &&
+              <div className="stack">
+                {penalties.map(p => (
+                  <div key={p.id} className="line line-danger">
+                    <span>{p.label}</span>
+                    <span className="line-right">
+                      <span className="mono neg">−{p.amount}</span>
+                      <button className="icon-btn icon-btn-sm" onClick={() => rmPen(p.id)} aria-label="Прибрати штраф"><Icon name="close" /></button>
+                    </span>
+                  </div>
+                ))}
+              </div>}
+          </div>
+
+          <div className="total-card">
+            <div className="total-top">
+              <div>
+                <div className="eyebrow">Підсумок за виступ</div>
+                <div className="total-value">{total}</div>
+              </div>
+              <button className="btn btn-outline" onClick={() => setShowDetail(true)}><Icon name="list" /> Детально</button>
+            </div>
+            <div className="total-breakdown">
+              <div className="tb-item"><span className="tb-label">Елементи</span><span className="mono tb-num">{elementPoints}</span></div>
+              <div className="tb-item"><span className="tb-label">Комбінації</span><span className="mono tb-num pos">+{comboBonus}</span></div>
+              <div className="tb-item"><span className="tb-label">Різноманіття</span><span className="mono tb-num pos">+{div.total}</span></div>
+              <div className="tb-item"><span className="tb-label">Дод. бали</span><span className="mono tb-num pos">+{bon}</span></div>
+              <div className="tb-item"><span className="tb-label">Штрафи</span><span className="mono tb-num neg">−{pen}</span></div>
+            </div>
+            {div.rows.length > 0 &&
+              <div className="total-tags">
+                {div.rows.map(r => <span key={r.group} className="mini-tag">{r.group} · {r.type} +{r.pts}</span>)}
+              </div>}
+          </div>
+        </main>
+      </div>
+
+      {showDetail && <DetailModal combos={combos} penalties={penalties} bonuses={bonuses} onClose={() => setShowDetail(false)} />}
+    </React.Fragment>
+  );
+}
+
+function Main() {
+  const [overrides, setOverrides] = useState(() => loadJSON(OV_KEY, {}));
+  const [added, setAdded] = useState(() => loadJSON(ADD_KEY, []));
+  const [showCatalog, setShowCatalog] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
+
+  const elements = useMemo(() => mergeElements(BASE, overrides, added), [overrides, added]);
+
+  const applyBase = (origName, patch) => setOverrides(prev => {
+    const next = { ...prev, [origName]: { ...(prev[origName] || {}), ...patch } };
+    saveJSON(OV_KEY, next); return next;
+  });
+  const createAdded = (fields) => setAdded(prev => {
+    const item = { ...fields, _addedId: Date.now().toString(36) + Math.random().toString(36).slice(2, 6) };
+    const next = prev.concat([item]);
+    saveJSON(ADD_KEY, next); return next;
+  });
+  const updateAdded = (addedId, fields) => setAdded(prev => {
+    const next = prev.map(a => a._addedId === addedId ? { ...a, ...fields } : a);
+    saveJSON(ADD_KEY, next); return next;
+  });
+  const deleteAdded = (addedId) => setAdded(prev => {
+    const next = prev.filter(a => a._addedId !== addedId);
+    saveJSON(ADD_KEY, next); return next;
+  });
+  const resetAll = () => { saveJSON(OV_KEY, {}); saveJSON(ADD_KEY, []); setOverrides({}); setAdded([]); };
+
+  return (
+    <div className="page">
+      <header className="masthead">
+        <div className="brand">
+          <span className="brand-mark"></span>
+          <div>
+            <h1 className="brand-title">Калькулятор комбінацій</h1>
+            <p className="brand-sub">Збери елементи в комбінації та порахуй бали за виступ</p>
+          </div>
+        </div>
+        <button className="btn btn-outline btn-catalog" onClick={() => setShowCatalog(true)}><Icon name="grid" /> Каталог</button>
+      </header>
+
+      <Calculator elements={elements} />
+
+      <button className="secret-btn" onClick={() => setShowAdmin(true)} aria-label="Службовий режим"><span className="secret-dots"></span></button>
+
+      {showCatalog && <CatalogModal elements={elements} onClose={() => setShowCatalog(false)} />}
+      {showAdmin && <AdminModal elements={elements}
+        onApplyBase={applyBase} onUpdateAdded={updateAdded} onCreateAdded={createAdded}
+        onDeleteAdded={deleteAdded} onReset={resetAll} onClose={() => setShowAdmin(false)} />}
+    </div>
+  );
+}
+
+function App() {
+  if (BASE.length === 0) {
+    return (
+      <div className="empty-file">
+        <h1>Дані елементів не знайдено</h1>
+        <p>Переконайся, що масив <b>GYMNASTICS_ELEMENTS</b> присутній у цьому файлі.</p>
+      </div>
+    );
+  }
+  return <Main />;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(reg => console.log('SW registered'))
+      .catch(err => console.log('SW registration failed:', err));
+  });
+}
+</script>
+</body>
+</html>
