@@ -4426,15 +4426,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 
 </script>
 <script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('SW registered'))
-      .catch(err => console.log('SW registration failed:', err));
-  });
-}
-</script>
-<script>
 // Знімок первісного, ще не обробленого сторінкою HTML — робиться синхронно під час
 // парсингу, до того як @babel/standalone встигне вставити в DOM свій скомпільований
 // <script> (він робить це на DOMContentLoaded, тобто вже ПІСЛЯ цього рядка).
